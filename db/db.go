@@ -1,33 +1,30 @@
 package db
 
 import (
-	"encoding/json"
-	"fmt"
+	"log"
 
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/janimationd/JacuzziBot/models"
 )
 
-type User struct {
-	UserId string
-	Points int
-}
-
+const DbPath string = "db/"
 const UsersBucketName string = "Users"
 
 // Open or create a BoltDB database for the given server ID.
 // Calling code MUST handle closing the database.
 func getDb(serverId string) (*bolt.DB, error) {
 	// Create or open a server-specific database file
-	db, err := bolt.Open(serverId+".db", 0600, nil)
+	db, err := bolt.Open(DbPath+serverId+".db", 0600, nil)
 	if err != nil {
-		fmt.Println("Error opening database: ", err)
+		log.Println("Error opening database: ", err)
 		return nil, err
 	}
 	return db, nil
 }
 
-func getOrCreateUser(db *bolt.DB, userId string) (User, error) {
-	var user User
+func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
+	var user models.User
 	var userJson []byte
 
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -41,7 +38,7 @@ func getOrCreateUser(db *bolt.DB, userId string) (User, error) {
 	})
 
 	if err != nil {
-		fmt.Println("Error reading from database:", err)
+		log.Println("Error reading from database:", err)
 		return user, err
 	}
 
@@ -52,11 +49,11 @@ func getOrCreateUser(db *bolt.DB, userId string) (User, error) {
 			if err != nil {
 				return err
 			}
-			user = User{
+			user = models.User{
 				UserId: userId,
 				Points: 0,
 			}
-			userJson, err = json.Marshal(user)
+			userJson, err = user.ToJsonBytes()
 			if err != nil {
 				return err
 			}
@@ -65,21 +62,21 @@ func getOrCreateUser(db *bolt.DB, userId string) (User, error) {
 	}
 
 	if userJson == nil || err != nil {
-		fmt.Println("Unknown error, could not fetch or create user record: ", err)
+		log.Println("Unknown error, could not fetch or create user record: ", err)
 		return user, err
 	}
 
 	// Load embedded JSON
-	err = json.Unmarshal(userJson, &user)
+	user, err = models.FromJsonBytes(userJson)
 	if err != nil {
-		fmt.Println("Error unmarshalling user: ", err)
+		log.Println("Error unmarshalling user: ", err)
 	}
 
 	return user, err
 }
 
-func awardUserPoints(db *bolt.DB, userId string, points int) (User, error) {
-	var user User
+func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.User, error) {
+	var user models.User
 	var userJson []byte
 	var err error
 
@@ -93,39 +90,39 @@ func awardUserPoints(db *bolt.DB, userId string, points int) (User, error) {
 			userJson = b.Get([]byte(userId))
 			if userJson == nil {
 				// User is not in database yet, so create a new record for them
-				user = User{
+				user = models.User{
 					UserId: userId,
-					Points: points,
+					Points: pointsDelta,
 				}
 			} else {
 				// User is in database already, so update their record
-				err = json.Unmarshal(userJson, &user)
+				user, err = models.FromJsonBytes(userJson)
 				if err != nil {
-					fmt.Println("Error unmarshalling user: ", err)
+					log.Println("Error unmarshalling user: ", err)
 					return err
 				}
-				user.Points += points
+				user.Points += pointsDelta
 			}
 
-			userJson, err = json.Marshal(user)
+			userJson, err = user.ToJsonBytes()
 			if err != nil {
-				fmt.Println("Error marshalling user: ", err)
+				log.Println("Error marshalling user: ", err)
 				return err
 			}
 			return b.Put([]byte(userId), userJson)
 		})
 	}
 
-	if user == (User{}) || err != nil {
-		fmt.Println("Unknown error, could not create or update user record: ", err)
+	if user == (models.User{}) || err != nil {
+		log.Println("Unknown error, could not create or update user record: ", err)
 		return user, err
 	}
 
 	return user, err
 }
 
-func GetUser(serverId string, userId string) (User, error) {
-	var user User
+func GetUser(serverId string, userId string) (models.User, error) {
+	var user models.User
 
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -137,8 +134,8 @@ func GetUser(serverId string, userId string) (User, error) {
 	return getOrCreateUser(db, userId)
 }
 
-func AwardUserPoints(serverId string, userId string, points int) (User, error) {
-	var user User
+func ModifyUserPoints(serverId string, userId string, pointsDelta float64) (models.User, error) {
+	var user models.User
 
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -147,5 +144,5 @@ func AwardUserPoints(serverId string, userId string, points int) (User, error) {
 	}
 	defer db.Close()
 
-	return awardUserPoints(db, userId, points)
+	return modifyUserPoints(db, userId, pointsDelta)
 }

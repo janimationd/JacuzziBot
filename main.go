@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,7 +16,7 @@ func main() {
 	// SENSITIVE!!!
 	cfg, err := discord.LoadAuth()
 	if err != nil {
-		fmt.Println("Error loading auth:", err)
+		log.Println("Error loading auth:", err)
 		return
 	}
 
@@ -25,7 +25,7 @@ func main() {
 	// Create Discord session
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
-		fmt.Println("Error creating Discord session,", err)
+		log.Println("Error creating Discord session,", err)
 		return
 	}
 
@@ -35,11 +35,11 @@ func main() {
 	// Open connection
 	err = dg.Open()
 	if err != nil {
-		fmt.Println("Error opening connection,", err)
+		log.Println("Error opening connection,", err)
 		return
 	}
 
-	fmt.Println("Bot is now running. Press CTRL-C to exit.")
+	log.Println("Bot is now running. Press CTRL-C to exit.")
 
 	// Wait here until CTRL-C or other termination signal
 	sc := make(chan os.Signal, 1)
