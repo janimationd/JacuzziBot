@@ -8,14 +8,14 @@ import (
 	"github.com/janimationd/JacuzziBot/models"
 )
 
-const DbPath string = "db/"
-const UsersBucketName string = "Users"
+const dbPath string = "db/"
+const usersBucketName string = "Users"
 
 // Open or create a BoltDB database for the given server ID.
 // Calling code MUST handle closing the database.
 func getDb(serverId string) (*bolt.DB, error) {
 	// Create or open a server-specific database file
-	db, err := bolt.Open(DbPath+serverId+".db", 0600, nil)
+	db, err := bolt.Open(dbPath+serverId+".db", 0600, nil)
 	if err != nil {
 		log.Println("Error opening database: ", err)
 		return nil, err
@@ -29,7 +29,7 @@ func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		// Create or fetch the Users bucket
-		b, err := tx.CreateBucketIfNotExists([]byte(UsersBucketName))
+		b, err := tx.CreateBucketIfNotExists([]byte(usersBucketName))
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
 	if userJson == nil {
 		// User key not found in bucket, create a record for them
 		err = db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists([]byte(UsersBucketName))
+			b, err := tx.CreateBucketIfNotExists([]byte(usersBucketName))
 			if err != nil {
 				return err
 			}
@@ -83,7 +83,7 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 	if userJson == nil {
 		// User key not found in bucket, create a record for them
 		err = db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists([]byte(UsersBucketName))
+			b, err := tx.CreateBucketIfNotExists([]byte(usersBucketName))
 			if err != nil {
 				return err
 			}
