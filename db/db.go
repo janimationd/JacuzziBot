@@ -5,6 +5,7 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
+	"github.com/janimationd/JacuzziBot/errors"
 	"github.com/janimationd/JacuzziBot/models"
 )
 
@@ -88,12 +89,14 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 				return err
 			}
 			userJson = b.Get([]byte(userId))
+			var originalPoints float64
 			if userJson == nil {
 				// User is not in database yet, so create a new record for them
 				user = models.User{
 					UserId: userId,
 					Points: pointsDelta,
 				}
+				originalPoints = 0
 			} else {
 				// User is in database already, so update their record
 				user, err = models.FromJsonBytes(userJson)
@@ -101,7 +104,18 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 					log.Println("Error unmarshalling user: ", err)
 					return err
 				}
+				originalPoints = user.Points
 				user.Points += pointsDelta
+			}
+
+			// If their new point value would be negative, reject the action.
+			if user.Points < 0 {
+				return &errors.InsufficientPointsError{
+					CurrentPoints: originalPoints,
+					// Since (hopefully) the only way we would arrive at a negative value is a negative delta,
+					// here we invert it to get a positive value.
+					RequiredPoints: -pointsDelta,
+				}
 			}
 
 			userJson, err = user.ToJsonBytes()

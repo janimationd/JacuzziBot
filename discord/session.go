@@ -4,7 +4,69 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/janimationd/JacuzziBot/discord/slashCommands"
+	"github.com/janimationd/JacuzziBot/models"
 )
+
+func add(m *map[string]*models.SlashCommand, slashCommand *models.SlashCommand) {
+	(*m)[slashCommand.Command.Name] = slashCommand
+}
+
+var commands = map[string]*models.SlashCommand{}
+
+var registeredCommands []*models.SlashCommand
+
+func registerCommandHandler(session *discordgo.Session) {
+	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if h, ok := commands[i.ApplicationCommandData().Name]; ok {
+			log.Printf("Matched incoming interaction to handler: %s.\n", i.ApplicationCommandData().Name)
+			h.Handler(s, i)
+		} else {
+			log.Printf("Couldn't match incoming interaction to a handler: %s.\n", i.ApplicationCommandData().Name)
+		}
+	})
+	log.Println("Registered command handler.")
+}
+
+func registerSlashCommands(session *discordgo.Session) {
+	// List of slash commands to register
+	add(&commands, &slashCommands.Give)
+
+	for _, slashCommand := range commands {
+		cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", slashCommand.Command)
+		if err != nil {
+			log.Println("Cannot register slash command:", err)
+			continue
+		}
+		slashCommand.Command = cmd
+		registeredCommands = append(registeredCommands, slashCommand)
+		log.Printf("Registered command with name \"%s\".\n", slashCommand.Command.Name)
+	}
+
+	log.Printf("Registered %d commands.\n", len(registeredCommands))
+
+	registerCommandHandler(session)
+}
+
+func deregisterSlashCommands(session *discordgo.Session) {
+	for _, slashCommand := range registeredCommands {
+		if slashCommand != nil {
+			err := session.ApplicationCommandDelete(session.State.User.ID, "", slashCommand.Command.ID)
+			if err != nil {
+				log.Printf("Couldn't deregister command with name \"%s\" (%s): %s\n",
+					slashCommand.Command.Name, slashCommand.Command.ID, err.Error())
+				continue
+			}
+			log.Printf("Deregistered command with name \"%s\" (%s).\n",
+				slashCommand.Command.Name, slashCommand.Command.ID)
+		}
+	}
+
+	// If you need to cleanup any leftover command registrations, do so here.
+	// You can copy the command ID from a previous run in the server's settings under "Integrations",
+	// then right click on the slash command and copy its ID.
+	//session.ApplicationCommandDelete(session.State.User.ID, "", "1455810415937458304")
+}
 
 var session *discordgo.Session
 
@@ -37,11 +99,15 @@ func Open() error {
 		return err
 	}
 
+	registerSlashCommands(session)
+
 	log.Println("Discord session opened and waiting for events.")
 	return nil
 }
 
 func Close() {
+	deregisterSlashCommands(session)
+
 	// Cleanly close Discord session
 	err := session.Close()
 	if err != nil {
@@ -50,4 +116,8 @@ func Close() {
 	}
 
 	log.Println("Discord session closed.")
+}
+
+func Session() *discordgo.Session {
+	return session
 }
