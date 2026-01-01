@@ -4,6 +4,8 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/janimationd/JacuzziBot/discord/handlers"
 	"github.com/janimationd/JacuzziBot/discord/slashCommands"
 	"github.com/janimationd/JacuzziBot/models"
 )
@@ -30,9 +32,11 @@ func registerCommandHandler(session *discordgo.Session) {
 
 func registerSlashCommands(session *discordgo.Session) {
 	// List of slash commands to register
-	add(&commands, &slashCommands.Give)
+	add(&commands, &slashCommands.Help)
 	add(&commands, &slashCommands.Points)
+	add(&commands, &slashCommands.Give)
 
+	// Register the list of commands
 	for _, slashCommand := range commands {
 		cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", slashCommand.Command)
 		if err != nil {
@@ -90,8 +94,9 @@ func Open() error {
 		return err
 	}
 
-	// Register message handler
-	session.AddHandler(MessageCreateHandler)
+	// Register handlers
+	session.AddHandler(handlers.MessageCreateHandler)
+	session.AddHandler(handlers.ReactionHandler)
 
 	// Open connection
 	err = session.Open()

@@ -1,4 +1,4 @@
-package discord
+package handlers
 
 import (
 	"log"
@@ -20,5 +20,5 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// Every other message gets the author some points!
-	workflows.NewMessageGetsPoints(s, m)
+	workflows.MessageGetsPoints(s, m)
 }

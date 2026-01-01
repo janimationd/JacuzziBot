@@ -1,9 +1,5 @@
 ﻿# JacuzziBot
-A fun Discord bot with these features:
-- Each server and user combination has an associated point value.
-- Points start at 0.
-- When a user posts a message in a server where the bot is installed, they earn points.
-- (more features to come)
+A fun Discord bot with the features described in [`utils\help.go`](https://github.com/janimationd/JacuzziBot/blob/main/utils/help.go).
 
 The code is organized as follows:
 - `constants/`: constant values

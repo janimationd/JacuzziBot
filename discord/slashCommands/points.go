@@ -72,7 +72,7 @@ var Points = models.SlashCommand{
 		targetDbUser, err := db.GetUser(interaction.GuildID, target.ID)
 		if err != nil {
 			str := fmt.Sprintf("Failed to fetch current points for user %s (%s)", target.ID, targetName)
-			log.Printf("%s:", str, err)
+			log.Printf("%s: %s\n", str, err.Error())
 			// The user malformed their command; reject it
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,

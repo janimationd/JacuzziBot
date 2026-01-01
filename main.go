@@ -6,11 +6,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/discord"
 )
 
 func waitForSignal() {
-	log.Println("JacuzziBot is now running. Press CTRL-C to exit.")
+	log.Printf("%s is now running. Press CTRL-C to exit.", constants.BotName)
 
 	// Wait here until CTRL-C or other termination signal
 	sc := make(chan os.Signal, 1)
@@ -28,5 +29,5 @@ func main() {
 	defer discord.Close()
 
 	waitForSignal()
-	log.Println("JacuzziBot shutting down...")
+	log.Printf("%s shutting down...", constants.BotName)
 }
