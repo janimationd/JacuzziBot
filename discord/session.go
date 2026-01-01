@@ -38,7 +38,12 @@ func registerSlashCommands(session *discordgo.Session) {
 
 	// Register the list of commands
 	for _, slashCommand := range commands {
-		cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", slashCommand.Command)
+		cmd, err := session.ApplicationCommandCreate(
+			session.State.User.ID,
+			// Passing this makes them guild-level commands which are client-side refreshed much faster than global ones.
+			session.State.Application.GuildID,
+			slashCommand.Command,
+		)
 		if err != nil {
 			log.Println("Cannot register slash command:", err)
 			continue
@@ -79,16 +84,14 @@ var session *discordgo.Session
 func Open() error {
 	// Load bot config/auth details
 	// SENSITIVE!!!
-	cfg, err := LoadAuth()
+	auth, err := LoadAuth()
 	if err != nil {
 		log.Println("Error loading auth:", err)
 		return err
 	}
 
-	token := cfg.Token
-
 	// Create Discord session
-	session, err = discordgo.New("Bot " + token)
+	session, err = discordgo.New("Bot " + auth.Token)
 	if err != nil {
 		log.Println("Error creating Discord session,", err)
 		return err
