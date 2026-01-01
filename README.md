@@ -40,7 +40,7 @@ The code is organized as follows:
 1. Set your `DISCORD_TOKEN` environment variable to your app's Discord auth token that you saved earlier.
     1. If you're developing in VS Code you can permanently store your token in the PowerShell terminal like this: `setx DISCORD_TOKEN "..."`. You'll need to restart VS Code before this change takes effect. Verify with `echo $env:DISCORD_TOKEN`.
 1. `go run .` to both compile and run the app executable locally.
-1. Once it's running, you'll need to refresh Discord before you see the bot's commands become available in your test server. You can do this by pressing `Ctrl+R`. (You'll need to refresh every time you restart the server too)
+1. Once it's running, your client should pick up the commands so you can start using them within about 5 seconds.
 1. `Ctrl+C` in your terminal to stop the bot program and exit cleanly.
 
 Example local output:
