@@ -64,10 +64,10 @@ var Points = models.SlashCommand{
 			verb = "have"
 		default:
 			// Another user
-			target, err := session.User(target.ID)
+			target, err := session.GuildMember(interaction.GuildID, target.ID)
 			if err != nil {
 				log.Println("Failed to fetch user details", err)
-				targetName = "(unable to fetch display name, whoops!)"
+				targetName = constants.ErrorFetchingDisplayNameMessage
 			} else {
 				targetName = target.DisplayName()
 			}

@@ -73,7 +73,13 @@ var Give = models.SlashCommand{
 			recipientName = session.State.User.DisplayName()
 		} else {
 			responseMessage = "Done!"
-			recipientName = recipient.DisplayName()
+			member, err := session.GuildMember(interaction.GuildID, recipient.ID)
+			if err != nil {
+				log.Println("Unable to fetch member details:", err)
+				recipientName = constants.ErrorFetchingDisplayNameMessage
+			} else {
+				recipientName = member.DisplayName()
+			}
 		}
 
 		// Modify database. First try to subtract the user's own points, then add them to the recipients'.
