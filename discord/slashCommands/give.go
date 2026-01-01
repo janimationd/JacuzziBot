@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
@@ -103,7 +104,7 @@ var Give = models.SlashCommand{
 					log.Println(str+":", err)
 					responseMessage += ". " + str
 				}
-				responseMessage += ". Send a screenshot to one of your admins and they'll fix this."
+				responseMessage += constants.ErrorReportMessageSuffix
 			}
 		}
 

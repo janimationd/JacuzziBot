@@ -31,6 +31,7 @@ func registerCommandHandler(session *discordgo.Session) {
 func registerSlashCommands(session *discordgo.Session) {
 	// List of slash commands to register
 	add(&commands, &slashCommands.Give)
+	add(&commands, &slashCommands.Points)
 
 	for _, slashCommand := range commands {
 		cmd, err := session.ApplicationCommandCreate(session.State.User.ID, "", slashCommand.Command)
