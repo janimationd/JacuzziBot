@@ -21,4 +21,13 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// Every other message gets the author some points!
 	workflows.MessageGetsPoints(s, m)
+
+	for _, user := range m.Mentions {
+		if user.ID == s.State.User.ID {
+			// The bot was mentioned
+			workflows.BotMentionPrintsHelp(s, m)
+			// If mentioned multiple times, only print once
+			break
+		}
+	}
 }
