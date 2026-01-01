@@ -47,6 +47,7 @@ var Give = models.SlashCommand{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "You can't give yourself points, silly!",
+					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
 			return
@@ -56,6 +57,7 @@ var Give = models.SlashCommand{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "You can only give a value greater than zero, silly!",
+					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
 			return
