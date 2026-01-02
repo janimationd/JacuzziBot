@@ -32,14 +32,25 @@ var Give = models.SlashCommand{
 				Description: "How many are you giving?",
 				Required:    true,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "message",
+				Description: "Send an optional message along with the points.",
+				Required:    false,
+			},
 		},
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		success := true
 
 		// Extract options/parameters
-		recipient := interaction.ApplicationCommandData().Options[0].UserValue(nil)
-		amount := interaction.ApplicationCommandData().Options[1].FloatValue()
+		recipient := getCommandOption(interaction, "recipient").UserValue(nil)
+		amount := getCommandOption(interaction, "amount").FloatValue()
+		message := getCommandOption(interaction, "message")
+		var messageStr string
+		if message != nil {
+			messageStr = message.StringValue()
+		}
 
 		// Validations
 		if recipient.ID == interaction.Member.User.ID {
@@ -82,7 +93,7 @@ var Give = models.SlashCommand{
 			}
 		}
 
-		// Modify database. First try to subtract the user's own points, then add them to the recipients'.
+		// Modify database. First try to subtract the user's own points, then add them to the recipient's.
 		// Error handling is complicated since we want to gracefully fail when possible.
 		var userAfter, recipientAfter models.User
 		var err error
@@ -126,27 +137,37 @@ var Give = models.SlashCommand{
 		})
 
 		if success {
-			line1 := fmt.Sprintf(
-				"<@%s> has just given <@%s> %s points!\n",
+			plural := utils.Plural(amount)
+			line := fmt.Sprintf(
+				"<@%s> has just given <@%s> %s point%s!\n",
 				interaction.Member.User.ID,
 				recipient.ID,
 				utils.FormatUIFloat(amount),
+				plural,
 			)
-			line2 := fmt.Sprintf(
-				"> *%s now has %s points*\n",
+			if messageStr != "" {
+				line += fmt.Sprintf(
+					"Message: \"%s\"\n",
+					messageStr,
+				)
+			}
+			plural = utils.Plural(userAfter.Points)
+			line += fmt.Sprintf(
+				"> *%s now has %s point%s*\n",
 				interaction.Member.DisplayName(),
 				utils.FormatUIFloat(userAfter.Points),
+				plural,
 			)
-			line3 := fmt.Sprintf(
-				"> *%s now has %s points*\n",
+			plural = utils.Plural(recipientAfter.Points)
+			line += fmt.Sprintf(
+				"> *%s now has %s point%s*\n",
 				recipientName,
 				utils.FormatUIFloat(recipientAfter.Points),
+				plural,
 			)
+
 			// Notify in the channel about what happened
-			session.ChannelMessageSend(
-				interaction.ChannelID,
-				line1+line2+line3,
-			)
+			session.ChannelMessageSend(interaction.ChannelID, line)
 		}
 	},
 }

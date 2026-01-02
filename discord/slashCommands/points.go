@@ -30,23 +30,15 @@ var Points = models.SlashCommand{
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		// Extract options/parameters
+		user := getCommandOption(interaction, "user")
+
+		// Figure out target
 		var target *discordgo.User
-		if len(interaction.ApplicationCommandData().Options) == 1 &&
-			interaction.ApplicationCommandData().Options[0].Name == "user" {
-			target = interaction.ApplicationCommandData().Options[0].UserValue(nil)
+		if user != nil {
+			target = user.UserValue(session)
 		} else if len(interaction.ApplicationCommandData().Options) == 0 {
 			// If user is omitted, default to the user who initated the command.
 			target = interaction.Member.User
-		} else {
-			// The user malformed their command, reject it
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Malformed command. Usage: `/points [@user]`",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return
 		}
 
 		// Figure out the display name of the target user
@@ -91,10 +83,11 @@ var Points = models.SlashCommand{
 		}
 
 		// Respond with feedback message
+		plural := utils.Plural(targetDbUser.Points)
 		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("%s %s %s points.", targetName, verb, utils.FormatUIFloat(targetDbUser.Points)),
+				Content: fmt.Sprintf("%s %s %s point%s.", targetName, verb, utils.FormatUIFloat(targetDbUser.Points), plural),
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
