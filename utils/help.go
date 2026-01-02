@@ -22,7 +22,7 @@ func Help() string {
 	result += "- Here are the slash commands you can perform:\n"
 	result += "  - `/help` - Show this help text (also shown to the channel whenever you mention me)\n"
 	result += "  - `/points [user]` - Check how many points someone has (omit the `user` to chickity-check yourself)\n"
-	result += "  - `/give <recipient> <amount>` - Give someone else some of your points\n"
+	result += "  - `/give <recipient> <amount> [message]` - Give someone else some of your points, optionally with a message\n"
 
 	result += "\nI'll get more ways for you to earn and spend points over time, so look forward to that!\n"
 	result += "\nTry to keep point farming to a minumum :wink:"
