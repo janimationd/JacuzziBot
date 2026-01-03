@@ -89,19 +89,19 @@ No contributor license agreement (CLA) is required at this time.
 
 ## 5. No Warranty
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
 
 ---
 
 ## 6. Limitation of Liability
 
-IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DAMAGES OR CLAIMS ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
 
 ---
 
 ## 7. Termination
 
-Any violation of this License automatically terminates the rights granted herein.
+Any violation of this License automatically terminates the rights granted herein. Upon termination, You must cease all use and distribution of the Software.
 
 ---
 
