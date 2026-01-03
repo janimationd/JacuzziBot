@@ -12,30 +12,46 @@ type scheduledEvent struct {
 	name string
 	// The next scheduled time to trigger the event at. If zero, it means the event will not happen again.
 	nextTime time.Time
-	// How long between scheduled event triggers. If zero, it means NextTime will not be updated after the next event.
-	Interval time.Duration
+	// How long between scheduled event triggers. If zero, it means nextTime will not be advanced after the next event.
+	interval time.Duration
 	// The callback function to call when the event triggers. Passes in the event name.
 	callback func(string)
 }
 
-// Set NextTime to be the next wall clock-aligned Interval boundary.
+// Set nextTime to be the next wall clock-aligned interval boundary.
 func (event *scheduledEvent) init() {
+	// Pre-scheduled events don't need to be initialized.
+	if !event.nextTime.IsZero() {
+		return
+	}
+
 	now := time.Now()
-	result := now.Round(event.Interval)
+	result := now.Round(event.interval)
 	// If it rounded down, add one interval to get our next time.
 	if result.Before(now) {
-		result = result.Add(event.Interval)
+		result = result.Add(event.interval)
 	}
 	event.nextTime = result
 	log.Printf("scheduledEvent \"%s\" initialized with nextTime = %s\n", event.name, event.nextTime.String())
 }
 
-// Advances the NextTime of the event to the next scheduled time after its current value.
-func (event *scheduledEvent) advanceNextTime() {
-	if event.nextTime.Equal(time.UnixMilli(0)) || event.Interval == 0 {
+// Returns true if the event is not going to happen again, false otherwise.
+func (event *scheduledEvent) isDone() bool {
+	return event.nextTime.IsZero()
+}
+
+// Advances the nextTime of the event to the next scheduled time after its current value.
+func (event *scheduledEvent) updateNextTime() {
+	if event.nextTime.IsZero() {
 		return
 	}
-	event.nextTime = event.nextTime.Add(event.Interval)
+	if event.interval == 0 {
+		log.Printf("scheduledEvent \"%s\" will not execute again.\n", event.name)
+		// Reset nextTime to 0.
+		event.nextTime = time.Time{}
+		return
+	}
+	event.nextTime = event.nextTime.Add(event.interval)
 	log.Printf("scheduledEvent \"%s\" advanced to nextTime = %s\n", event.name, event.nextTime.String())
 }
 
@@ -45,7 +61,7 @@ func (event *scheduledEvent) check() {
 	// If it's time to execute the event
 	if now.Equal(event.nextTime) || now.After(event.nextTime) {
 		event.callback(event.name)
-		event.advanceNextTime()
+		event.updateNextTime()
 	}
 }
 
@@ -55,8 +71,13 @@ var schedule []*scheduledEvent
 func setup() {
 	// Create and append all scheduled events here
 	schedule = append(schedule, &scheduledEvent{
-		name:     "ExampleEvent",
-		Interval: 1 * time.Minute,
+		name:     "ExampleRecurringEvent",
+		interval: 1 * time.Minute,
+		callback: func(eventName string) { log.Println(eventName + ": " + time.Now().String()) },
+	})
+	schedule = append(schedule, &scheduledEvent{
+		name:     "ExampleOneOffEvent",
+		nextTime: time.Now().Add(30 * time.Second),
 		callback: func(eventName string) { log.Println(eventName + ": " + time.Now().String()) },
 	})
 
@@ -66,7 +87,7 @@ func setup() {
 	}
 }
 
-const checkInterval = 1 * time.Second
+const checkinterval = 1 * time.Second
 
 // Setup and run the schedule.
 func Run(ctx context.Context) {
@@ -80,13 +101,15 @@ func Run(ctx context.Context) {
 			return
 		default:
 			for _, event := range schedule {
-				event.check()
+				if !event.isDone() {
+					event.check()
+				}
 			}
 		}
 		// This won't be perfectly accurate, but that's fine.
 		loopEndTime := time.Now()
 		loopDuration := loopEndTime.Sub(loopStartTime)
-		sleepDuration := max(checkInterval-loopDuration, 0)
+		sleepDuration := max(checkinterval-loopDuration, 0)
 		time.Sleep(sleepDuration)
 	}
 }
