@@ -24,7 +24,7 @@ func (event *scheduledEvent) init() {
 	result := now.Round(event.Interval)
 	// If it rounded down, add one interval to get our next time.
 	if result.Before(now) {
-		result.Add(event.Interval)
+		result = result.Add(event.Interval)
 	}
 	event.nextTime = result
 	log.Printf("scheduledEvent \"%s\" initialized with nextTime = %s\n", event.name, event.nextTime.String())
@@ -55,7 +55,7 @@ var schedule []*scheduledEvent
 func setup() {
 	// Create and append all scheduled events here
 	schedule = append(schedule, &scheduledEvent{
-		name:     "VoiceCallPointAwarder",
+		name:     "ExampleEvent",
 		Interval: 1 * time.Minute,
 		callback: func(eventName string) { log.Println(eventName + ": " + time.Now().String()) },
 	})
