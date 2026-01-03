@@ -100,6 +100,7 @@ func Open() error {
 	// Register handlers
 	session.AddHandler(handlers.MessageCreateHandler)
 	session.AddHandler(handlers.ReactionHandler)
+	session.AddHandler(handlers.VoiceCallHandler)
 
 	// Open connection
 	err = session.Open()
