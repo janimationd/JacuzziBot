@@ -17,8 +17,6 @@ var Give = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name:        "give",
 		Description: "Give another user some of your points",
-		// If you add new options there will likely be some handler validations you need to tweak
-		// (e.g. checking to make sure the count of options is as expected)
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,
