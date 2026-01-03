@@ -1,20 +1,26 @@
 # Custom Source-Available Noncommercial License  
 _Based on the PolyForm Noncommercial License 1.0.0_
 
-Copyright © 2025 Johnathan Baird  
+Copyright ¬© 2025 Johnathan Baird  
 All rights reserved.
 
 ---
 
 ## 1. Definitions
 
-**ìSoftwareî** means the source code, object code, documentation, and any other materials contained in this repository.
+**‚ÄúSoftware‚Äù** means the source code, object code, documentation, and any other materials contained in this repository.
 
-**ìYouî** means any individual or entity that uses, copies, modifies, or distributes the Software.
+**‚ÄúLicensor‚Äù** means the individual or legal entity that owns the copyright to the Software and grants the license under this License, currently Johnathan Baird.
 
-**ìNoncommercialî** means not primarily intended for or directed toward commercial advantage or monetary compensation.
+**‚ÄúYou‚Äù** means any individual or legal entity that accesses, uses, copies, modifies, or distributes the Software **in source or compiled form**.
 
-**ìCompeting Useî** means operating, providing, or distributing a Discord bot or similar service that is functionally similar to the Software, whether public or private, and whether monetized or not.
+For clarity, **‚ÄúYou‚Äù does not include end users who interact with a running instance of the bot solely through Discord or other user-facing interfaces**, and who do not access or interact with the Software‚Äôs source code.
+
+**‚ÄúNoncommercial‚Äù** means not primarily intended for or directed toward commercial advantage or monetary compensation.
+
+**‚ÄúCompeting Use‚Äù** means operating, providing, or distributing a Discord bot or similar service that is functionally similar to the Software, whether public or private, and whether monetized or not.
+
+**‚ÄúContribution‚Äù** means any original work of authorship intentionally submitted to this repository for inclusion in the Software, including but not limited to source code, documentation, tests, or other materials. For avoidance of doubt, **purely mechanical or non-creative changes** (such as file moves, formatting changes, or dependency updates without substantive logic changes) are not considered standalone Contributions.
 
 ---
 
@@ -25,7 +31,9 @@ Subject to the terms and conditions of this License, the Licensor grants You a w
 - View, copy, and modify the Software  
 - Use the Software for personal, educational, or internal purposes  
 - Create private or internal forks for development, testing, or evaluation  
-- Submit contributions to the original repository  
+- Submit Contributions to the original repository  
+
+All rights not expressly granted are reserved by the Licensor.
 
 ---
 
@@ -38,7 +46,7 @@ You may **not** use the Software for commercial purposes.
 This includes, but is not limited to:
 
 - Selling the Software or access to it  
-- Operating the Software as part of a paid service  
+- Operating the Software as part of a paid product or service  
 - Using the Software in a monetized Discord bot or platform  
 
 The Licensor explicitly reserves the right to offer the Software under separate commercial terms in the future.
@@ -47,28 +55,33 @@ The Licensor explicitly reserves the right to offer the Software under separate 
 
 ### 3.2 No Competing Use
 
-You may **not** use, copy, modify, or distribute the Software (or any substantially similar derivative) for the purpose of operating or providing a Discord bot or service that competes with the functionality of this project, without explicit prior written permission from the Licensor.
+You may **not** use, copy, modify, or distribute the Software or any derivative work for the purpose of operating or providing a Competing Use, without explicit prior written permission from the Licensor.
 
-This restriction is intended to prevent direct cloning or feature-lifting of the bot as a competing service, and does **not** prohibit:
+This restriction applies **regardless of authorship**, including to authors of Contributions.
+
+This restriction does **not** prohibit:
 
 - Learning from the code  
 - Referencing general programming techniques  
-- Re-implementing ideas independently without copying code or structure  
+- Independently re-implementing ideas without copying code, structure, or expressive elements  
 
 ---
 
 ### 3.3 Same License Requirement
 
-If You distribute the Software or any modified version of it, You must do so under the same license terms as this License.
+If You distribute the Software or any modified version of it, You must do so under the terms of this License.
 
 ---
 
 ## 4. Contributions
 
-Unless otherwise stated, any contribution intentionally submitted to this repository:
+Unless otherwise stated, any Contribution intentionally submitted to this repository:
 
-- Remains the intellectual property of its original author  
-- Is licensed for use under the terms of this License  
+- Remains the intellectual property of its original author; **however**
+- Is irrevocably licensed under the terms of this License, and
+- Is subject to all restrictions and limitations set forth herein, including noncommercial and non-competing use restrictions
+
+In the event of any conflict between an individual contributor‚Äôs copyright interests and the terms of this License, **the terms of this License shall govern** with respect to use, distribution, and derivation of the Contribution within or from this Software.
 
 No contributor license agreement (CLA) is required at this time.
 
@@ -76,39 +89,22 @@ No contributor license agreement (CLA) is required at this time.
 
 ## 5. No Warranty
 
-THE SOFTWARE IS PROVIDED ìAS ISî, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+THE SOFTWARE IS PROVIDED ‚ÄúAS IS‚Äù, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
 
 ---
 
 ## 6. Limitation of Liability
 
-IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DAMAGES OR CLAIMS ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
 
 ---
 
 ## 7. Termination
 
-Any violation of this License automatically terminates the rights granted herein. Upon termination, You must cease all use and distribution of the Software.
+Any violation of this License automatically terminates the rights granted herein.
 
 ---
 
-## 8. Reader Reward Clause (Non-Binding)
+## 8. Governing Law
 
-If you have read this License in full, you are invited to send Johnathan a private message.  
-You may, at Johnathanís sole discretion, be awarded a not-yet-decided-on amount of the botís internal virtual currency as a reward.
-
-This virtual currency:
-
-- Has no real-world monetary value  
-- Cannot be exchanged for real currency or goods  
-- Is provided purely for fun and community engagement  
-
-If you disclose the existence of this clause to others, the reward is permanently void.
-
-This section is informal, non-binding, and does not create any legal obligation or condition under this License.
-
----
-
-## 9. Governing Law
-
-This License shall be governed by and construed in accordance with the laws of the Licensorís jurisdiction.
+This License shall be governed by the laws of the Licensor‚Äôs jurisdiction.
