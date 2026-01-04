@@ -1,33 +1,42 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/discord"
+	"github.com/janimationd/JacuzziBot/scheduler"
 )
-
-func waitForSignal() {
-	log.Printf("%s is now running. Press CTRL-C to exit.", constants.BotName)
-
-	// Wait here until CTRL-C or other termination signal
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
-}
 
 // Entry point for the program
 func main() {
+	// Setup Discord session
 	err := discord.Open()
 	if err != nil {
-		log.Println("Failed to open Discord connection:", err)
+		log.Println("Failed to open Discord session:", err)
 		return
 	}
 	defer discord.Close()
 
-	waitForSignal()
+	// Execute goroutines using a WaitGroup so we can wait for them to finish later when SIGINT has been received.
+	var waitGroup sync.WaitGroup
+	// Scheduler goroutine
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	waitGroup.Go(func() {
+		scheduler.Run(ctx)
+	})
+
+	// Wait here until CTRL-C or other termination signal
+	log.Printf("%s is now running. Press CTRL-C to exit.", constants.BotName)
+	<-ctx.Done()
+
 	log.Printf("%s shutting down...", constants.BotName)
+	waitGroup.Wait()
+	log.Println("All goroutines have completed; exiting.")
 }
