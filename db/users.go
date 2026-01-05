@@ -107,7 +107,11 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 			log.Println("Error marshalling user: ", err)
 			return err
 		}
-		return bucket.Put([]byte(userId), userJson)
+		err = bucket.Put([]byte(userId), userJson)
+		if err == nil {
+			log.Printf("User %s's points were modified by %f.\n", user.UserId, pointsDelta)
+		}
+		return err
 	})
 
 	if user == (models.User{}) || err != nil {
