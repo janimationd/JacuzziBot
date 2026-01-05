@@ -109,7 +109,7 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 		}
 		err = bucket.Put([]byte(userId), userJson)
 		if err == nil {
-			log.Printf("User %s's points were modified by %f.\n", user.UserId, pointsDelta)
+			log.Printf("User %s's points were modified by %.2f.\n", user.UserId, pointsDelta)
 		}
 		return err
 	})
