@@ -13,15 +13,15 @@ var schedule []*models.ScheduledEvent
 
 // Puts all known events on the schedule.
 func setup() {
-	// Create and append all scheduled events here. Examples:
+	// Create and append all scheduled events here. Examples (though they should each be defined in their own files):
 	//
-	// schedule = append(schedule, &scheduledEvent{
+	// schedule = append(schedule, &ScheduledEvent{
 	// 	   name:     "ExampleRecurringEvent",
 	//     interval: 1 * time.Minute,
 	// 	   callback: func(eventName string) { log.Println(eventName + ": " + time.Now().String()) },
 	// })
 	//
-	// schedule = append(schedule, &scheduledEvent{
+	// schedule = append(schedule, &ScheduledEvent{
 	// 	   name:     "ExampleOneOffEvent",
 	// 	   nextTime: time.Now().Add(30 * time.Second),
 	// 	   callback: func(eventName string) { log.Println(eventName + ": " + time.Now().String()) },

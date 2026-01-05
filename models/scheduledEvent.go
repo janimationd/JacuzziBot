@@ -31,7 +31,7 @@ func (event *ScheduledEvent) Init() {
 		result = result.Add(event.Interval)
 	}
 	event.NextTime = result
-	log.Printf("scheduledEvent \"%s\" initialized with nextTime = %s\n", event.Name, event.NextTime.String())
+	log.Printf("ScheduledEvent \"%s\" initialized with nextTime = %s\n", event.Name, event.NextTime.String())
 }
 
 // Returns true if the event is not going to happen again, false otherwise.
@@ -45,13 +45,13 @@ func (event *ScheduledEvent) updateNextTime() {
 		return
 	}
 	if event.Interval == 0 {
-		log.Printf("scheduledEvent \"%s\" will not execute again.\n", event.Name)
+		log.Printf("ScheduledEvent \"%s\" will not execute again.\n", event.Name)
 		// Reset nextTime to 0.
 		event.NextTime = time.Time{}
 		return
 	}
 	event.NextTime = event.NextTime.Add(event.Interval)
-	log.Printf("scheduledEvent \"%s\" advanced to nextTime = %s\n", event.Name, event.NextTime.String())
+	log.Printf("ScheduledEvent \"%s\" advanced to nextTime = %s\n", event.Name, event.NextTime.String())
 }
 
 func (event *ScheduledEvent) Check() {
