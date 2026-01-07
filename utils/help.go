@@ -17,6 +17,8 @@ func Help() string {
 		FormatUIFloat(constants.MessagePoints))
 	result += fmt.Sprintf("  - Reacting to messages: **+%s points** for you *and the message author*\n",
 		FormatUIFloat(constants.ReactionPoints))
+	result += fmt.Sprintf("  - Being in a voice call: **+%s points** per minute *times how many people are in the call*\n",
+		FormatUIFloat(constants.VoiceCallPointsPerParticipantPerMinute))
 
 	// List all slash commands here
 	result += "- Here are the slash commands you can perform:\n"
