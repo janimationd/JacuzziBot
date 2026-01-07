@@ -243,17 +243,3 @@ func GetAllVoiceCallsWithParticipants(serverId string) ([]models.VoiceCall, erro
 
 	return getAllVoiceCallsWithParticipants(db)
 }
-
-func NukeVoiceCallBucket(serverId string) {
-	// Create or open a server-specific database file
-	db, err := getDb(serverId)
-	if err != nil {
-		log.Println("Failed to nuke voice call database")
-		return
-	}
-	defer db.Close()
-
-	db.Update(func(tx *bolt.Tx) error {
-		return tx.DeleteBucket([]byte(voiceCallsBucketName))
-	})
-}
