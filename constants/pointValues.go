@@ -5,3 +5,6 @@ package constants
 
 const MessagePoints float64 = 10
 const ReactionPoints float64 = 1
+
+// If there are 5 people in the call, this is multipled by 5 and then awarded to each person every minute.
+const VoiceCallPointsPerParticipantPerMinute float64 = 1
