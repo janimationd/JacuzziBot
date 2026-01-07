@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/janimationd/JacuzziBot/constants"
-	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/discord"
 	"github.com/janimationd/JacuzziBot/scheduler"
 )
@@ -23,11 +22,6 @@ func main() {
 		return
 	}
 	defer discord.Close()
-
-	// Need to temprarily cleanup the old voice call DB bucket state since I want to change the JSON format of the DB.
-	for _, guild := range discord.Session.State.Guilds {
-		db.NukeVoiceCallBucket(guild.ID)
-	}
 
 	// Execute goroutines using a WaitGroup so we can wait for them to finish later when SIGINT has been received.
 	var waitGroup sync.WaitGroup
