@@ -7,7 +7,7 @@ type VoiceCall struct {
 	// The voice channel ID
 	ChannelId string
 	// The user IDs currently participating in the voice call
-	Users utils.Set[string]
+	Users *utils.Set[string]
 }
 
 func (v VoiceCall) ContainsUser(userId string) bool {

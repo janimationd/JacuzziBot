@@ -78,7 +78,7 @@ func deregisterSlashCommands(session *discordgo.Session) {
 	//session.ApplicationCommandDelete(session.State.User.ID, "", "1455810415937458304")
 }
 
-var session *discordgo.Session
+var Session *discordgo.Session
 
 // Setup the Discord API listener and callbacks for handling various incoming events.
 func Open() error {
@@ -91,43 +91,39 @@ func Open() error {
 	}
 
 	// Create Discord session
-	session, err = discordgo.New("Bot " + auth.Token)
+	Session, err = discordgo.New("Bot " + auth.Token)
 	if err != nil {
 		log.Println("Error creating Discord session,", err)
 		return err
 	}
 
 	// Register handlers
-	session.AddHandler(handlers.MessageCreateHandler)
-	session.AddHandler(handlers.ReactionHandler)
-	session.AddHandler(handlers.VoiceCallHandler)
+	Session.AddHandler(handlers.MessageCreateHandler)
+	Session.AddHandler(handlers.ReactionHandler)
+	Session.AddHandler(handlers.VoiceCallHandler)
 
 	// Open connection
-	err = session.Open()
+	err = Session.Open()
 	if err != nil {
 		log.Println("Error opening connection,", err)
 		return err
 	}
 
-	registerSlashCommands(session)
+	registerSlashCommands(Session)
 
 	log.Println("Discord session opened and waiting for events.")
 	return nil
 }
 
 func Close() {
-	deregisterSlashCommands(session)
+	deregisterSlashCommands(Session)
 
 	// Cleanly close Discord session
-	err := session.Close()
+	err := Session.Close()
 	if err != nil {
 		log.Println("Failed to close Discord session:", err)
 		return
 	}
 
 	log.Println("Discord session closed.")
-}
-
-func Session() *discordgo.Session {
-	return session
 }

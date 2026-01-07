@@ -39,7 +39,7 @@ func getOrCreateVoiceCall(db *bolt.DB, channelId string) (models.VoiceCall, erro
 			}
 			voiceCall = models.VoiceCall{
 				ChannelId: channelId,
-				Users:     utils.Set[string]{},
+				Users:     &utils.Set[string]{},
 			}
 			voiceCallJson, err = models.ToJsonBytes(voiceCall)
 			if err != nil {
@@ -63,14 +63,14 @@ func getOrCreateVoiceCall(db *bolt.DB, channelId string) (models.VoiceCall, erro
 	return voiceCall, err
 }
 
-type Op bool
+type operation bool
 
 const (
-	Add    Op = true
-	Remove Op = false
+	Add    operation = true
+	Remove operation = false
 )
 
-func modifyUsers(db *bolt.DB, channelId string, op Op, userId string) (models.VoiceCall, error) {
+func modifyUsers(db *bolt.DB, channelId string, op operation, userId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
 	// Encapsulate all logic in a transaction to avoid race conditions
@@ -164,6 +164,33 @@ func getVoiceCallForUser(db *bolt.DB, userId string) (models.VoiceCall, error) {
 	return voiceCall, err
 }
 
+func getAllVoiceCallsWithParticipants(db *bolt.DB) ([]models.VoiceCall, error) {
+	var voiceCalls []models.VoiceCall
+
+	// Encapsulate all logic in a transaction to avoid race conditions
+	err := db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(voiceCallsBucketName))
+		if bucket == nil {
+			return nil
+		}
+		err := bucket.ForEach(func(k, jsonBytes []byte) error {
+			vc, err := models.FromJsonBytes[models.VoiceCall](jsonBytes)
+			if err != nil {
+				log.Println("Error unmarshalling voice call, skipping:", err)
+				return err
+			}
+			if vc.Users.Size() != 0 {
+				voiceCalls = append(voiceCalls, vc)
+			}
+			return nil
+		})
+
+		return err
+	})
+
+	return voiceCalls, err
+}
+
 func GetVoiceCall(serverId string, channelId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
@@ -177,7 +204,7 @@ func GetVoiceCall(serverId string, channelId string) (models.VoiceCall, error) {
 	return getOrCreateVoiceCall(db, channelId)
 }
 
-func ModifyUsers(serverId string, channelId string, op Op, userId string) (models.VoiceCall, error) {
+func ModifyUsers(serverId string, channelId string, op operation, userId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
 	// Create or open a server-specific database file
@@ -201,4 +228,32 @@ func GetVoiceCallForUser(serverId string, userId string) (models.VoiceCall, erro
 	defer db.Close()
 
 	return getVoiceCallForUser(db, userId)
+}
+
+// Get all active voice calls that have at least one user in them right now.
+func GetAllVoiceCallsWithParticipants(serverId string) ([]models.VoiceCall, error) {
+	var voiceCalls []models.VoiceCall
+
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return voiceCalls, err
+	}
+	defer db.Close()
+
+	return getAllVoiceCallsWithParticipants(db)
+}
+
+func NukeVoiceCallBucket(serverId string) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		log.Println("Failed to nuke voice call database")
+		return
+	}
+	defer db.Close()
+
+	db.Update(func(tx *bolt.Tx) error {
+		return tx.DeleteBucket([]byte(voiceCallsBucketName))
+	})
 }
