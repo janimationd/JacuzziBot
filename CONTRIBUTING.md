@@ -1,22 +1,13 @@
 # Contributing
 
-Thanks for your interest in contributing!
+Thank you for your interest in contributing!
 
-This project is shared under a source-available, noncommercial license. Contributions are welcome, but please keep the following in mind:
+By submitting a pull request or otherwise contributing to this project, you agree
+that your contributions will be licensed under the MIT License, consistent with
+the rest of the project.
 
-## What’s encouraged
-- Bug fixes
-- Quality-of-life improvements
-- New features that align with the project’s direction
-- Refactors and cleanup
-- Private forks for testing or experimentation
-
-## What’s not allowed
-- Using this code to run or develop a competing Discord bot
-- Commercial use of the code without permission
-
-## Ownership
-- You retain copyright to your contributions
-- By submitting a pull request, you agree to license your contribution under the project’s license
-
-If you’re unsure whether something fits, please do ask!
+## Guidelines
+- Keep changes focused and well-documented
+- Follow existing code style where applicable
+- Be excellent to one another
+- If you plan to work on a feature, please track it as a GitHub issue so there is some visibility into what's being worked on.
