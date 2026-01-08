@@ -49,7 +49,7 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 	}
 
 	// Attempt to buy an egg
-	user, err = db.ModifyUserPoints(serverId, userId, -cost)
+	_, err = db.ModifyUserPoints(serverId, userId, -cost)
 	if err != nil {
 		log.Println("Could not modify user points:", err)
 		return tama, err
@@ -65,13 +65,13 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 	}
 	// Mark the user as the owner of this Tama and increment their purchase count.
 	if err == nil {
-		user, err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id, true)
+		_, err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id, true)
 	}
 
 	if err != nil {
 		log.Println("Failed to buy Tama egg:", err)
 		// Refund the user's points.
-		user, err = db.ModifyUserPoints(serverId, userId, cost)
+		_, err = db.ModifyUserPoints(serverId, userId, cost)
 		if err != nil {
 			log.Printf("Failed to refund user %s's %.0f points: %s\n", userId, cost, err.Error())
 			return tama, err
