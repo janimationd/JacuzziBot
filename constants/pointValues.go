@@ -8,3 +8,6 @@ const ReactionPoints float64 = 1
 
 // If there are 5 people in the call, this is multipled by 5 and then awarded to each person every minute.
 const VoiceCallPointsPerParticipantPerMinute float64 = 1
+
+// The cost of purchasing your second Tama egg (the first one is free). The cost increases for each additional purchase.
+const TamaEggPurchaseBaseCost float64 = 100

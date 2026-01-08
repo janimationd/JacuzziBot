@@ -63,14 +63,7 @@ func getOrCreateVoiceCall(db *bolt.DB, channelId string) (models.VoiceCall, erro
 	return voiceCall, err
 }
 
-type operation bool
-
-const (
-	Add    operation = true
-	Remove operation = false
-)
-
-func modifyUsers(db *bolt.DB, channelId string, op operation, userId string) (models.VoiceCall, error) {
+func modifyUsers(db *bolt.DB, channelId string, op Operation, userId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
 	// Encapsulate all logic in a transaction to avoid race conditions
@@ -204,7 +197,7 @@ func GetVoiceCall(serverId string, channelId string) (models.VoiceCall, error) {
 	return getOrCreateVoiceCall(db, channelId)
 }
 
-func ModifyUsers(serverId string, channelId string, op operation, userId string) (models.VoiceCall, error) {
+func ModifyVoiceCallUsers(serverId string, channelId string, op Operation, userId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
 	// Create or open a server-specific database file
