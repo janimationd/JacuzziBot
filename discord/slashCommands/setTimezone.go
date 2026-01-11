@@ -115,11 +115,11 @@ func getRegionChoices() []*discordgo.ApplicationCommandOptionChoice {
 	return regionChoices
 }
 
-// Print the help string
+// Allow users to set their timezone with the bot, which can be used for other features.
 var SetTimezone = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name: "set-timezone",
-		Description: fmt.Sprintf("Tell %s what your local timezone is (used with a variety of features).",
+		Description: fmt.Sprintf("Tell %s what your local timezone is (used by other features).",
 			constants.BotName),
 		Options: []*discordgo.ApplicationCommandOption{
 			{
