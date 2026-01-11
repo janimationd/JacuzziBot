@@ -15,6 +15,9 @@ import (
 
 // Entry point for the program
 func main() {
+	// Run all tests we have on startup.
+	RunTestsIfRequested()
+
 	// Setup Discord session
 	err := discord.Open()
 	if err != nil {

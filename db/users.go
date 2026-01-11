@@ -63,6 +63,51 @@ func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
 	return user, err
 }
 
+func setUserTimezone(db *bolt.DB, userId string, timezone string) (models.User, error) {
+	var user models.User
+
+	// Encapsulate all logic in a transaction to avoid race conditions
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(usersBucketName))
+		if err != nil {
+			return err
+		}
+		userJson := bucket.Get([]byte(userId))
+
+		if userJson == nil {
+			// User is not in database yet, so create a new record for them
+			user = models.User{
+				UserId: userId,
+			}
+		} else {
+			// User is in database already, so update their record
+			user, err = models.FromJsonBytes[models.User](userJson)
+			if err != nil {
+				log.Println("Error unmarshalling user: ", err)
+				return err
+			}
+		}
+		user.Timezone = timezone
+
+		userJson, err = models.ToJsonBytes(user)
+		if err != nil {
+			log.Println("Error marshalling user: ", err)
+			return err
+		}
+		err = bucket.Put([]byte(userId), userJson)
+		if err == nil {
+			log.Printf("User %s's timezone was saves as %s.\n", user.UserId, timezone)
+		}
+		return err
+	})
+
+	if user == (models.User{}) || err != nil {
+		log.Println("Could not create or update user record: ", err)
+	}
+
+	return user, err
+}
+
 func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.User, error) {
 	var user models.User
 
@@ -146,4 +191,17 @@ func ModifyUserPoints(serverId string, userId string, pointsDelta float64) (mode
 	defer db.Close()
 
 	return modifyUserPoints(db, userId, pointsDelta)
+}
+
+func SetUserTimezone(serverId string, userId string, timezone string) (models.User, error) {
+	var user models.User
+
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return user, err
+	}
+	defer db.Close()
+
+	return setUserTimezone(db, userId, timezone)
 }
