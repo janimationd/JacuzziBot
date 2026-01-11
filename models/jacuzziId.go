@@ -2,7 +2,7 @@ package models
 
 import "encoding/binary"
 
-// A JaccuziId is a server-unique unsigned integral ID. All things identified by such an ID have a unique valuew across
+// A JaccuziId is a server-unique unsigned integral ID. All things identified by such an ID have a unique value across
 // all types of objects on the same server. IDs are granted sequentially starting from 1. A value of 0 means "no ID".
 type JacuzziId = uint64
 

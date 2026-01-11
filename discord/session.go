@@ -7,6 +7,7 @@ import (
 
 	"github.com/janimationd/JacuzziBot/discord/handlers"
 	"github.com/janimationd/JacuzziBot/discord/slashCommands"
+	"github.com/janimationd/JacuzziBot/discord/slashCommands/tama"
 	"github.com/janimationd/JacuzziBot/models"
 )
 
@@ -35,6 +36,7 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.Help)
 	add(&commands, &slashCommands.Points)
 	add(&commands, &slashCommands.Give)
+	add(&commands, &tama.RegisterTamaChannel)
 
 	// Register the list of commands
 	for _, slashCommand := range commands {

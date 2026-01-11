@@ -24,6 +24,8 @@ const (
 type Tama struct {
 	// The server-unique JacuzziId of the Tama
 	Id JacuzziId
+	// The user ID of the owner. If "" this egg is unclaimed.
+	Owner string
 	// True if the Tama hasn't hatched yet, and is still an egg. If true, all later fields can/will be default values.
 	IsEgg bool
 	// The user-configured name of the Tama after it has hatched.

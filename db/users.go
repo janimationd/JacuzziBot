@@ -115,7 +115,7 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 		return err
 	})
 
-	if user == (models.User{}) || err != nil {
+	if err != nil {
 		log.Println("Unknown error, could not create or update user record:", err)
 		return user, err
 	}

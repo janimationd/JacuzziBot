@@ -57,13 +57,15 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 
 	// Since now we have to be careful about refunding their points if any errors happen, invert our error handling.
 	tama, err = makeTamaEgg(serverId)
-	// Store the Tama's details in the DB.
 	if err == nil {
+		// Mark the egg as owned by the requesting user.
+		tama.Owner = userId
+		// Store the Tama's details in the DB.
 		err = db.StoreTama(serverId, channelId, &tama)
 	}
 	// Mark the user as the owner of this Tama and increment their purchase count.
 	if err == nil {
-		err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id, true)
+		user, err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id, true)
 	}
 
 	if err != nil {
