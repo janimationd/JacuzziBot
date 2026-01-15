@@ -18,13 +18,23 @@ var commands = map[string]*models.SlashCommand{}
 
 var registeredCommands []*models.SlashCommand
 
-func registerCommandHandler(session *discordgo.Session) {
+// This is going to be significantly reworked by code changes Araceli is working on, so I'm not worried about making
+// this super scalable right now.
+func registerInteractionCreateHandlers(session *discordgo.Session) {
+	// There are many kinds of interactions, so we subscribe to specific subtypes here.
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commands[i.ApplicationCommandData().Name]; ok {
-			log.Printf("Matched incoming interaction to handler: %s.\n", i.ApplicationCommandData().Name)
-			h.Handler(s, i)
+		if i.Interaction.Type == discordgo.InteractionApplicationCommandAutocomplete {
+			switch i.ApplicationCommandData().Name {
+			case slashCommands.SetTimezone.Command.Name:
+				slashCommands.TimezoneCityAutoComplete(s, i)
+			}
 		} else {
-			log.Printf("Couldn't match incoming interaction to a handler: %s.\n", i.ApplicationCommandData().Name)
+			if h, ok := commands[i.ApplicationCommandData().Name]; ok {
+				log.Printf("Matched incoming interaction to handler: %s.\n", i.ApplicationCommandData().Name)
+				h.Handler(s, i)
+			} else {
+				log.Printf("Couldn't match incoming interaction to a handler: %s.\n", i.ApplicationCommandData().Name)
+			}
 		}
 	})
 	log.Println("Registered command handler.")
@@ -35,6 +45,7 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.Help)
 	add(&commands, &slashCommands.Points)
 	add(&commands, &slashCommands.Give)
+	add(&commands, &slashCommands.SetTimezone)
 	add(&commands, &slashCommands.Gamble)
 
 	// Register the list of commands
@@ -56,7 +67,7 @@ func registerSlashCommands(session *discordgo.Session) {
 
 	log.Printf("Registered %d commands.\n", len(registeredCommands))
 
-	registerCommandHandler(session)
+	registerInteractionCreateHandlers(session)
 }
 
 func deregisterSlashCommands(session *discordgo.Session) {
