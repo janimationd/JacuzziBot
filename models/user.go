@@ -14,4 +14,7 @@ type User struct {
 	Tamas *utils.Set[JacuzziId]
 	// How many total Tama the user has purchase before. This influences the cost to buy another one.
 	NumTamasPurchased uint64
+	// The user's timezone. Stored in the format of "America/Los_Angeles", so something that can be fed into
+	// time.LoadLocation().
+	Timezone string
 }
