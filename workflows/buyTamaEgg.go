@@ -26,6 +26,11 @@ func makeTamaEgg(serverId string) (models.Tama, error) {
 	}, err
 }
 
+func calculateTamaEggCost(user *models.User) float64 {
+	// constants.TamaEggPurchaseBaseCost for their first purchase, then double it for every one thereafter.
+	return math.Pow(2, float64(user.NumTamasPurchased)) * constants.TamaEggPurchaseBaseCost
+}
+
 // Buy a Tama egg. Creates one from scratch, and deducts the cost of purchase from the user.
 func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, error) {
 	var tama models.Tama
@@ -41,12 +46,7 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 		return tama, err
 	}
 
-	var cost float64 = 0
-	// If this isn't their first egg purchased, calculate the cost to buy (first one is free).
-	if user.NumTamasPurchased > 0 {
-		// constants.TamaEggPurchaseBaseCost for their second purchase, then double it for every one thereafter.
-		cost = math.Pow(2, float64(user.NumTamasPurchased-1)) * constants.TamaEggPurchaseBaseCost
-	}
+	cost := calculateTamaEggCost(&user)
 
 	// Attempt to buy an egg
 	_, err = db.ModifyUserPoints(serverId, userId, -cost)

@@ -10,4 +10,4 @@ const ReactionPoints float64 = 1
 const VoiceCallPointsPerParticipantPerMinute float64 = 1
 
 // The cost of purchasing your second Tama egg (the first one is free). The cost increases for each additional purchase.
-const TamaEggPurchaseBaseCost float64 = 100
+const TamaEggPurchaseBaseCost float64 = 50
