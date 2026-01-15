@@ -45,7 +45,6 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.Help)
 	add(&commands, &slashCommands.Points)
 	add(&commands, &slashCommands.Give)
-	add(&commands, &slashCommands.Gamble)
 	add(&commands, &slashCommands.SetTimezone)
 	add(&commands, &slashCommands.Gamble)
 
