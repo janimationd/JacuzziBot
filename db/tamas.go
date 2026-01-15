@@ -60,7 +60,7 @@ func storeTama(db *bolt.DB, channelId string, tama *models.Tama) error {
 		return fmt.Errorf("No channel is registered as a Tama minigame yet.")
 	}
 	if registeredChannelId != channelId {
-		return fmt.Errorf("Tama must be created in the registered channel #%s.", registeredChannelId)
+		return fmt.Errorf("Tama must be created in the registered channel <#%s>.", registeredChannelId)
 	}
 
 	err := db.Update(func(tx *bolt.Tx) error {

@@ -28,9 +28,10 @@ func FormatUIFloat(f float64) string {
 	return result
 }
 
+// Returns "s" if the amount would warrant it, otherwise returns "".
 // For formatting plural nouns, e.g. "0 points", "0.5 points", "1 point", "1.5 points", "2 points"
 func Plural(amount float64) string {
-	if amount != 1 {
+	if math.Abs(amount) != 1 {
 		return "s"
 	}
 	return ""

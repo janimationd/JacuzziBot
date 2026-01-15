@@ -29,14 +29,16 @@ func claimNextJacuzziId(db *bolt.DB) (models.JacuzziId, error) {
 			bucket.Put([]byte(nextIdKey), models.BytesFromJacuzziId(2))
 			nextId = 1
 			return nil
+		} else {
+			nextId = models.JacuzziIdFromBytes(nextIdBytes)
 		}
-		nextId = models.JacuzziIdFromBytes(nextIdBytes)
-		bucket.Put([]byte(nextIdKey), models.BytesFromJacuzziId(nextId+1))
-		return nil
+		return bucket.Put([]byte(nextIdKey), models.BytesFromJacuzziId(nextId+1))
 	})
 
 	if err != nil {
 		log.Println("Error interacting with database:", err)
+	} else {
+		log.Printf("JacuzziId %d claimed!\n", nextId)
 	}
 	return nextId, err
 }

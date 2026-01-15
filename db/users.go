@@ -24,42 +24,35 @@ func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
 			return err
 		}
 		userJson = bucket.Get([]byte(userId))
-		return nil
-	})
-
-	if err != nil {
-		log.Println("Error reading from database:", err)
-		return user, err
-	}
-
-	if userJson == nil {
-		// User key not found in bucket, create a record for them
-		err = db.Update(func(tx *bolt.Tx) error {
-			bucket, err := tx.CreateBucketIfNotExists([]byte(usersBucketName))
-			if err != nil {
-				return err
-			}
+		if userJson == nil {
 			user = models.User{
 				UserId: userId,
 				Points: 0,
+				Tamas:  &utils.Set[models.JacuzziId]{},
 			}
 			userJson, err = models.ToJsonBytes(user)
 			if err != nil {
 				return err
 			}
 			return bucket.Put([]byte(userId), userJson)
-		})
-	}
+		} else {
+			// Load embedded JSON
+			user, err = models.FromJsonBytes[models.User](userJson)
+			if err != nil {
+				log.Println("Error unmarshalling user: ", err)
+			}
+
+			// Create the Tamas Set if it doesn't exist yet
+			if user.Tamas == nil {
+				user.Tamas = &utils.Set[models.JacuzziId]{}
+			}
+			return nil
+		}
+	})
 
 	if userJson == nil || err != nil {
 		log.Println("Unknown error, could not fetch or create user record: ", err)
 		return user, err
-	}
-
-	// Load embedded JSON
-	user, err = models.FromJsonBytes[models.User](userJson)
-	if err != nil {
-		log.Println("Error unmarshalling user: ", err)
 	}
 
 	return user, err
@@ -80,6 +73,7 @@ func setUserTimezone(db *bolt.DB, userId string, timezone string) (models.User, 
 			// User is not in database yet, so create a new record for them
 			user = models.User{
 				UserId: userId,
+				Tamas:  &utils.Set[models.JacuzziId]{},
 			}
 		} else {
 			// User is in database already, so update their record
@@ -90,6 +84,11 @@ func setUserTimezone(db *bolt.DB, userId string, timezone string) (models.User, 
 			}
 		}
 		user.Timezone = timezone
+
+		// Create the Tamas Set if it doesn't exist yet
+		if user.Tamas == nil {
+			user.Tamas = &utils.Set[models.JacuzziId]{}
+		}
 
 		userJson, err = models.ToJsonBytes(user)
 		if err != nil {
@@ -126,6 +125,7 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 			user = models.User{
 				UserId: userId,
 				Points: 0,
+				Tamas:  &utils.Set[models.JacuzziId]{},
 			}
 		} else {
 			// User is in database already, so update their record
@@ -137,6 +137,11 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 		}
 		originalPoints = user.Points
 		user.Points += pointsDelta
+
+		// Create the Tamas Set if it doesn't exist yet
+		if user.Tamas == nil {
+			user.Tamas = &utils.Set[models.JacuzziId]{}
+		}
 
 		// If their new point value would be negative, reject the action.
 		if user.Points < 0 {
@@ -200,6 +205,11 @@ func modifyUserTamas(
 			}
 		}
 
+		// Create the Tamas Set if it doesn't exist yet
+		if user.Tamas == nil {
+			user.Tamas = &utils.Set[models.JacuzziId]{}
+		}
+
 		// Modify state
 		switch op {
 		case Add:
@@ -210,7 +220,7 @@ func modifyUserTamas(
 		case Remove:
 			removed := user.Tamas.Remove(tamaId)
 			if !removed {
-				message := fmt.Sprintf("User %s does not currently own Tama %s, so cannot remove it.", userId, tamaId)
+				message := fmt.Sprintf("User %s does not currently own Tama %d, so cannot remove it.", userId, tamaId)
 				log.Println(message)
 				return fmt.Errorf(message)
 			}
@@ -224,7 +234,7 @@ func modifyUserTamas(
 		}
 		err = bucket.Put([]byte(userId), userJson)
 		if err == nil {
-			log.Printf("User %s's Tamas were modified for Tama %s.\n", user.UserId, tamaId)
+			log.Printf("User %s's Tamas were modified for Tama %d.\n", user.UserId, tamaId)
 		}
 		return err
 	})

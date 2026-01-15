@@ -8,6 +8,7 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/errors"
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/utils"
 )
 
 func makeTamaEgg(serverId string) (models.Tama, error) {
@@ -20,13 +21,15 @@ func makeTamaEgg(serverId string) (models.Tama, error) {
 	}
 
 	return models.Tama{
-		Id:    id,
-		IsEgg: true,
+		Id:             id,
+		IsEgg:          true,
+		PositiveTraits: &utils.Set[models.PositiveTrait]{},
+		NegativeTraits: &utils.Set[models.NegativeTrait]{},
 		// Everything else is blank for an egg
 	}, err
 }
 
-func calculateTamaEggCost(user *models.User) float64 {
+func CalculateTamaEggCost(user *models.User) float64 {
 	// constants.TamaEggPurchaseBaseCost for their first purchase, then double it for every one thereafter.
 	return math.Pow(2, float64(user.NumTamasPurchased)) * constants.TamaEggPurchaseBaseCost
 }
@@ -46,7 +49,7 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 		return tama, err
 	}
 
-	cost := calculateTamaEggCost(&user)
+	cost := CalculateTamaEggCost(&user)
 
 	// Attempt to buy an egg
 	_, err = db.ModifyUserPoints(serverId, userId, -cost)
@@ -71,10 +74,10 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 	if err != nil {
 		log.Println("Failed to buy Tama egg:", err)
 		// Refund the user's points.
-		_, err = db.ModifyUserPoints(serverId, userId, cost)
-		if err != nil {
-			log.Printf("Failed to refund user %s's %.0f points: %s\n", userId, cost, err.Error())
-			return tama, err
+		_, err2 := db.ModifyUserPoints(serverId, userId, cost)
+		if err2 != nil {
+			log.Printf("Failed to refund user %s's %.0f points: %s\n", userId, cost, err2.Error())
+			return tama, err2
 		}
 	}
 

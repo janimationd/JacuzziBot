@@ -24,17 +24,25 @@ var registeredCommands []*models.SlashCommand
 func registerInteractionCreateHandlers(session *discordgo.Session) {
 	// There are many kinds of interactions, so we subscribe to specific subtypes here.
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.Interaction.Type == discordgo.InteractionApplicationCommandAutocomplete {
-			switch i.ApplicationCommandData().Name {
-			case slashCommands.SetTimezone.Command.Name:
-				slashCommands.TimezoneCityAutoComplete(s, i)
-			}
-		} else {
+		switch i.Interaction.Type {
+		case discordgo.InteractionApplicationCommand:
 			if h, ok := commands[i.ApplicationCommandData().Name]; ok {
 				log.Printf("Matched incoming interaction to handler: %s.\n", i.ApplicationCommandData().Name)
 				h.Handler(s, i)
 			} else {
 				log.Printf("Couldn't match incoming interaction to a handler: %s.\n", i.ApplicationCommandData().Name)
+			}
+		case discordgo.InteractionApplicationCommandAutocomplete:
+			switch i.ApplicationCommandData().Name {
+			case slashCommands.SetTimezone.Command.Name:
+				slashCommands.TimezoneCityAutoComplete(s, i)
+			}
+		case discordgo.InteractionMessageComponent:
+			switch i.MessageComponentData().CustomID {
+			case tama.BuyTamaEggConfirmPurchaseId:
+				tama.HandleBuyTamaEggConfirmPurchase(s, i)
+			case tama.BuyTamaEggCancelPurchaseId:
+				tama.HandleBuyTamaEggCancelPurchase(s, i)
 			}
 		}
 	})
@@ -46,9 +54,10 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.Help)
 	add(&commands, &slashCommands.Points)
 	add(&commands, &slashCommands.Give)
-	add(&commands, &tama.RegisterTamaChannel)
 	add(&commands, &slashCommands.SetTimezone)
+	// Tama minigame commands
 	add(&commands, &tama.RegisterTamaChannel)
+	add(&commands, &tama.BuyTamaEgg)
 
 	// Register the list of commands
 	for _, slashCommand := range commands {

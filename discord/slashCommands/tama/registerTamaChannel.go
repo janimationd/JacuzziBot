@@ -12,7 +12,6 @@ import (
 // Only allow users with "Manage Guild/Server" permission to run this command.
 var perm = int64(discordgo.PermissionManageGuild)
 
-// Print the help string
 var RegisterTamaChannel = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name: "register-tama-channel",
