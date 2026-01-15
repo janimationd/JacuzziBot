@@ -9,4 +9,7 @@ type User struct {
 	// Points are a float behind the scenes, but we should limit precision
 	// when showing to users.
 	Points float64
+	// The user's timezone. Stored in the format of "America/Los_Angeles", so something that can be fed into
+	// time.LoadLocation().
+	Timezone string
 }
