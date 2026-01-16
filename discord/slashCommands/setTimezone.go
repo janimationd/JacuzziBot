@@ -191,7 +191,7 @@ func TimezoneCityAutoComplete(s *discordgo.Session, i *discordgo.InteractionCrea
 	})
 }
 
-func TestTimezones() {
+func TimezoneTests() {
 	log.Println("Testing timezone options for correctness:")
 	tests := 0
 	failures := 0

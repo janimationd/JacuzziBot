@@ -27,7 +27,28 @@ func Help() string {
 	result += "  - `/give <recipient> <amount> [message]` - Give someone else some of your points, optionally with a message\n"
 	result += "  - `/set-timezone <region> <city>` - Set your local timezone, which is used by other features\n"
 
+	result += "- Here are some other bot features with separate help pages:\n"
+	result += "  - `/tama-help` - Info on the Tama minigame where you hatch creatures from eggs and care for them\n"
+
 	result += "\nI'll get more ways for you to earn and spend points over time, so look forward to that!\n"
 	result += "\nTry to keep point farming to a minumum :wink:"
+
+	return result
+}
+
+func TamaHelp() string {
+	var result string
+
+	result += "Tama is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
+		"play with them to keep them happy and productive. Your Tama pets will interact with other people's pets " +
+		"and develop relationships with them. If Tamas like each other enough, they may fall in love and then mate! " +
+		"Happy Tamas can earn you points, though you'll have to spend points to purchase eggs and keep them fed. " +
+		"Basically, it's (legally distinct) Tamagotchi that can earn you points in the long run!\n"
+
+	result += "- Here are the commands you can play the minigame with:\n"
+	result += fmt.Sprintf("  - `/buy-tama-egg` - Purchase a Tama egg for **%s point%s**. "+
+		"*You need to call `/set-timezone` before running this command.*\n",
+		FormatUIFloat(constants.TamaEggPurchaseCost), Plural(constants.TamaEggPurchaseCost))
+
 	return result
 }

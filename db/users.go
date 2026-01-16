@@ -178,7 +178,6 @@ func modifyUserTamas(
 	userId string,
 	op Operation,
 	tamaId models.JacuzziId,
-	wasPurchase bool,
 ) (models.User, error) {
 	var user models.User
 
@@ -213,9 +212,6 @@ func modifyUserTamas(
 		// Modify state
 		switch op {
 		case Add:
-			if wasPurchase {
-				user.NumTamasPurchased += 1
-			}
 			user.Tamas.Add(tamaId)
 		case Remove:
 			removed := user.Tamas.Remove(tamaId)
@@ -279,7 +275,6 @@ func ModifyUserTamas(
 	userId string,
 	op Operation,
 	tamaId models.JacuzziId,
-	wasPurchase bool,
 ) (models.User, error) {
 	var user models.User
 
@@ -290,7 +285,7 @@ func ModifyUserTamas(
 	}
 	defer db.Close()
 
-	return modifyUserTamas(db, userId, op, tamaId, wasPurchase)
+	return modifyUserTamas(db, userId, op, tamaId)
 }
 
 func SetUserTimezone(serverId string, userId string, timezone string) (models.User, error) {

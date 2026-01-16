@@ -22,6 +22,7 @@ The code is organized as follows:
                 1. `Attach Files`
                 1. `Create Polls`
                 1. `Embed Links`
+                1. `Manage Roles`
                 1. `Mention Everyone`
                 1. `Read Message History`
                 1. `Send Messages`

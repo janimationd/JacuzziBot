@@ -11,6 +11,8 @@ import (
 
 const tamaChannelBucketName string = "TamaChannel"
 const tamaChannelKey string = tamaChannelBucketName
+const tamaMinigameRoleBucketName string = "TamaMinigameRole"
+const tamaMinigameRoleKey string = tamaMinigameRoleBucketName
 const tamaBucketName string = "Tamas"
 
 func registerTamaChannel(db *bolt.DB, channelId string) error {
@@ -106,6 +108,47 @@ func getTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
 	return tama, err
 }
 
+func getTamaMinigameRole(db *bolt.DB) string {
+	var minigameRoleId string
+
+	err := db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaMinigameRoleBucketName))
+		if bucket == nil {
+			return fmt.Errorf("No role for Tama minigame yet.")
+		}
+		minigameRoleBytes := bucket.Get([]byte(tamaMinigameRoleKey))
+		if minigameRoleBytes == nil {
+			return fmt.Errorf("No role for Tama minigame yet.")
+		}
+		minigameRoleId = string(minigameRoleBytes)
+		return nil
+	})
+	if minigameRoleId == "" {
+		log.Println("Could not fetch Tama minigame role:", err)
+	}
+	return minigameRoleId
+}
+
+func registerTamaMinigameRole(db *bolt.DB, roleId string) error {
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaMinigameRoleBucketName))
+		if err != nil {
+			log.Println("Couldn't fetch/create minigame role bucket:", err)
+			return err
+		}
+		minigameRoleIdBytes := bucket.Get([]byte(tamaMinigameRoleKey))
+		if minigameRoleIdBytes != nil {
+			return fmt.Errorf("Minigame role <@%s> already exists.", string(minigameRoleIdBytes))
+		}
+		return bucket.Put([]byte(tamaMinigameRoleKey), []byte(roleId))
+	})
+
+	if err != nil {
+		log.Println("Could not register Tama channel:", err)
+	}
+	return err
+}
+
 func RegisterTamaChannel(serverId string, channelId string) error {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -150,4 +193,26 @@ func GetTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
 	defer db.Close()
 
 	return getTama(db, tamaId)
+}
+
+func GetTamaMinigameRole(serverId string) string {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return ""
+	}
+	defer db.Close()
+
+	return getTamaMinigameRole(db)
+}
+
+func RegisterTamaMinigameRole(serverId string, minigameRoleId string) error {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return registerTamaMinigameRole(db, minigameRoleId)
 }

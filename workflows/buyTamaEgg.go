@@ -2,7 +2,6 @@ package workflows
 
 import (
 	"log"
-	"math"
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
@@ -29,14 +28,11 @@ func makeTamaEgg(serverId string) (models.Tama, error) {
 	}, err
 }
 
-func CalculateTamaEggCost(user *models.User) float64 {
-	// constants.TamaEggPurchaseBaseCost for their first purchase, then double it for every one thereafter.
-	return math.Pow(2, float64(user.NumTamasPurchased)) * constants.TamaEggPurchaseBaseCost
-}
-
 // Buy a Tama egg. Creates one from scratch, and deducts the cost of purchase from the user.
-func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, error) {
+func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, models.User, error) {
 	var tama models.Tama
+	var user models.User
+
 	user, err := db.GetUser(serverId, userId)
 	if err != nil {
 		log.Printf("Could not fetch user details for %s: %s\n", userId, err.Error())
@@ -46,16 +42,16 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 	if user.Tamas.Size() >= constants.TamaLimitPerUser {
 		err = errors.TamaLimitReachedError{}
 		log.Printf("%s -> User %s\n", err.Error(), userId)
-		return tama, err
+		return tama, user, err
 	}
 
-	cost := CalculateTamaEggCost(&user)
+	cost := constants.TamaEggPurchaseCost
 
 	// Attempt to buy an egg
-	_, err = db.ModifyUserPoints(serverId, userId, -cost)
+	user, err = db.ModifyUserPoints(serverId, userId, -cost)
 	if err != nil {
 		log.Println("Could not modify user points:", err)
-		return tama, err
+		return tama, user, err
 	}
 
 	// Since now we have to be careful about refunding their points if any errors happen, invert our error handling.
@@ -68,7 +64,7 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 	}
 	// Mark the user as the owner of this Tama and increment their purchase count.
 	if err == nil {
-		_, err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id, true)
+		user, err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id)
 	}
 
 	if err != nil {
@@ -77,9 +73,9 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 		_, err2 := db.ModifyUserPoints(serverId, userId, cost)
 		if err2 != nil {
 			log.Printf("Failed to refund user %s's %.0f points: %s\n", userId, cost, err2.Error())
-			return tama, err2
+			return tama, user, err2
 		}
 	}
 
-	return tama, err
+	return tama, user, err
 }

@@ -12,8 +12,6 @@ type User struct {
 	Points float64
 	// The IDs of all the Tama pets/eggs owned by the user.
 	Tamas *utils.Set[JacuzziId]
-	// How many total Tama the user has purchase before. This influences the cost to buy another one.
-	NumTamasPurchased uint64
 	// The user's timezone. Stored in the format of "America/Los_Angeles", so something that can be fed into
 	// time.LoadLocation().
 	Timezone string
