@@ -3,7 +3,6 @@ package slashCommands
 import (
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 
 	"github.com/bwmarrin/discordgo"
@@ -18,126 +17,123 @@ import (
 var Gamble = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name:        "gamble",
-		Description: "Gamble some of your points away",
-		// If you add new options there will likely be some handler validations you need to tweak
-		// (e.g. checking to make sure the count of options is as expected)
+		Description: "Wager some of your points, gambling to maybe earn more!",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
-				Name:        "odds",
-				Description: "What are the odds of winning? (e.g. 2 for 1 in 2 chance, yields double your points)",
+				Name:        "chance",
+				Description: "What is the chance of winning? (e.g. \"3\" for 1 in 3 chance to make back triple your wager)",
 				Required:    true,
 			},
 			{
-				Type:        discordgo.ApplicationCommandOptionInteger,
-				Name:        "amount",
-				Description: "How many points are you gambling?",
+				Type:        discordgo.ApplicationCommandOptionNumber,
+				Name:        "wager",
+				Description: "How many points are you wagering?",
 				Required:    true,
 			},
 		},
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		var err error
+		userId := interaction.Member.User.ID
 
 		// Extract options/parameters
-		odds := getCommandOption(interaction, "odds").IntValue()
-		amount := getCommandOption(interaction, "amount").IntValue()
+		chance := getCommandOption(interaction, "chance").IntValue()
+		wager := getCommandOption(interaction, "wager").FloatValue()
 
-		// Validations		
-		
+		// Validations
+
 		// Amount is invalid
-		if amount <= 0 {
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+		if wager <= 0 {
+			err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "You can't gamble nothing!",
+					Content: "Your wager must be more than 0.",
 					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
+			if err != nil {
+				log.Println("Failed to respond to interaction:", err)
+			}
 			return
 		}
 
-		// User picks invalid odds
-		if odds <= 0 {
+		// User chose an invalid chance. Chance of 1 in 1 doesn't make sense, so must be at least 2.
+		if chance < 2 {
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "You can't gamble with invalid odds! Pick a number greater than 0.",
+					Content: "Chance must be at least 2.",
 					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
+			if err != nil {
+				log.Println("Failed to respond to interaction:", err)
+			}
 			return
 		}
 
-		// User doesn't have enough points to gamble
-		user, err := db.GetUser(interaction.GuildID, interaction.Member.User.ID)
-
+		// Subtract their wager now to make sure they have the required amount of points.
+		user, err := db.ModifyUserPoints(interaction.GuildID, userId, -wager)
 		if err != nil {
-			log.Println("Unable to fetch user details:", err)
+			// The error will have a user-facing message in the case where they don't have enough points.
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "Unable to fetch user details.",
+					Content: "Failed to deduct wager from your balance:\n\n" + err.Error(),
 					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
 			return
 		}
 
-		if user.Points < float64(amount) {
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "You don't have enough points to gamble that much!",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return
-		}
+		message := fmt.Sprintf("<@%s> wagered %s point%s with a 1 in %d chance of winning...",
+			userId, utils.FormatUIFloat(wager), utils.Plural(wager), chance)
 
-		// Determine win or lose
-		// If user picks 1:n odds, they have a 1 in n chance to actually win.
-		win := rand.Intn(int(odds)) == 0
-		pointsDelta := amount * odds
-		if !win {
-			pointsDelta = -amount
-		} 
+		// Determine win or loss. They have a 1 in N chance to actually win.
+		win := rand.Intn(int(chance)) == 0
 
-		var userNewState models.User
-		userNewState, err = db.ModifyUserPoints(interaction.GuildID, interaction.Member.User.ID, float64(pointsDelta))
-	
-		if err != nil {
-			str := fmt.Sprintf(
-				"Failed to modify points for %s (%s)",
-				interaction.Member.User.ID,
-				interaction.Member.User.DisplayName(),
-			)
-			log.Println(str+":", err)
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: str + constants.ErrorReportMessageSuffix,
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return
-		}
-
-		// Respond with the outcome
-		outcomeStr := "lost"
 		if win {
-			outcomeStr = "won"
+			winnings := wager * float64(chance)
+			net := winnings - wager
+			message += fmt.Sprintf("\n\n**And won %s point%s back** (+%s point%s net) :money_mouth:",
+				utils.FormatUIFloat(winnings), utils.Plural(winnings), utils.FormatUIFloat(net), utils.Plural(net))
+
+			// Give them their winnings
+			user, err = db.ModifyUserPoints(interaction.GuildID, userId, winnings)
+			if err != nil {
+				log.Printf("Failed to modify points for %s (%s): %s\n",
+					userId, interaction.Member.User.DisplayName(), err.Error())
+				message += fmt.Sprintf("\n\nThough we failed to award your points: %s", err.Error())
+
+				// Try to refund their wager
+				user, err = db.ModifyUserPoints(interaction.GuildID, userId, wager)
+				if err != nil {
+					log.Println("Also failed to refund their wager:", err)
+					message += fmt.Sprintf("\n\nWe also failed to refund your wager%s: %s",
+						constants.ErrorReportMessageSuffix, err.Error())
+				} else {
+					message += "\n\nWe have refunded their wager."
+				}
+			}
+		} else {
+			message += "\n\n**And lost the gamble** :frowning2:"
 		}
+
+		// If there was an error, privately show the feedback message to the user.
+		var flags discordgo.MessageFlags
+		if err != nil {
+			flags = discordgo.MessageFlagsEphemeral
+		}
+
+		message += fmt.Sprintf(" They now have %s point%s.",
+			utils.FormatUIFloat(user.Points), utils.Plural(user.Points))
 
 		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf(
-					"You %s %s points! You now have %s points.",
-					outcomeStr,
-					utils.FormatUIFloat(math.Abs(float64(pointsDelta))),
-					utils.FormatUIFloat(userNewState.Points),
-				),
+				Content: message,
+				Flags:   flags,
 			},
 		})
 	},
