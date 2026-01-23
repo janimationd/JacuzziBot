@@ -3,7 +3,10 @@ package discord
 import (
 	_ "embed"
 	"fmt"
+	"log"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type AuthConfig struct {
@@ -13,6 +16,12 @@ type AuthConfig struct {
 // Load authentication config
 func LoadAuth() (*AuthConfig, error) {
 	var cfg AuthConfig
+
+	// Load .env file if it exists
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, skipping...")
+	}
 
 	// Override token with environment variable if set
 	if os.Getenv("DISCORD_TOKEN") != "" {
