@@ -47,17 +47,7 @@ var Award = models.SlashCommand{
 		amount := getCommandOption(interaction, "amount").FloatValue()
 		reasonStr := getCommandOption(interaction, "reason").StringValue()
 
-		// Validations
-		if amount <= 0 {
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "You can only award a value greater than zero, silly!",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			return
-		}
+		// We explicitly allow negative amounts so this can be used to undo incorrectly awarded points too.
 
 		// Default feedback messaging, assuming everything goes well.
 		var recipientName string
