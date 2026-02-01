@@ -62,6 +62,9 @@ var BuyTamaEgg = models.SlashCommand{
 				message = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if tamaChannel != interaction.ChannelID {
 				message = fmt.Sprintf("You must run this command in the <#%s> channel.", tamaChannel)
+			} else if user.Tamas.Size() >= constants.TamaLimitPerUser {
+				message = fmt.Sprintf("You're already at the limit of how many Tamas you can own: %d.",
+					constants.TamaLimitPerUser)
 			} else {
 				message = fmt.Sprintf("The cost to buy an egg is %s point%s.",
 					utils.FormatUIFloat(cost), utils.Plural(cost))

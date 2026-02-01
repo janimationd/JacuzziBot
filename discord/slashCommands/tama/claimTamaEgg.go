@@ -40,7 +40,7 @@ func canUserClaimEgg(serverId string, userId string, tama *models.Tama) (bool, s
 }
 
 // Print the help string
-var Help = models.SlashCommand{
+var ClaimTamaEgg = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name:        "claim-tama-egg",
 		Description: "Claim an unclaimed Tama egg.",
@@ -55,25 +55,32 @@ var Help = models.SlashCommand{
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		id := models.JacuzziId(utils.GetCommandOption(interaction, "id").IntValue())
+		userId := interaction.Member.User.ID
 
 		var err error
 
 		// Check if this is being executed in the registered channel.
 		channelId := db.GetTamaChannel(interaction.GuildID)
 		var errorMessage string
-		if channelId != interaction.ChannelID {
-			errorMessage = fmt.Sprintf("You must execute this command in <#%s>.", channelId)
-		}
 
-		// Check if the user is at their egg limit.
+		// Basic validations
 		var user models.User
-		if errorMessage == "" {
-			user, err = db.GetUser(interaction.GuildID, interaction.Member.User.ID)
+		user, err = db.GetUser(interaction.GuildID, userId)
+		if err != nil {
 			errorMessage = "Couldn't load user details" + constants.ErrorReportMessageSuffix
-		}
-		if errorMessage == "" && user.Tamas.Size() >= constants.TamaLimitPerUser {
-			errorMessage = fmt.Sprintf("You're already at the limit of how many Tamas you can own: %d.",
-				constants.TamaLimitPerUser)
+		} else {
+			if id <= models.NoId {
+				errorMessage = "Tama IDs must be greater than 0."
+			} else if user.Timezone == "" {
+				errorMessage = "You must run `/set-timezone` before running this command."
+			} else if channelId == "" {
+				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
+			} else if channelId != interaction.ChannelID {
+				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", channelId)
+			} else if user.Tamas.Size() >= constants.TamaLimitPerUser {
+				errorMessage = fmt.Sprintf("You're already at the limit of how many Tamas you can own: %d.",
+					constants.TamaLimitPerUser)
+			}
 		}
 
 		// Check if an unclaimed egg with that ID exists.
@@ -90,21 +97,41 @@ var Help = models.SlashCommand{
 			}
 		}
 
-		// Check if the user is allowed to claim the egg.
+		// Check if the user is allowed to claim the egg
 		if errorMessage == "" {
-			canClaim, reason := canUserClaimEgg(interaction.GuildID, interaction.Member.User.ID, tama)
+			canClaim, reason := canUserClaimEgg(interaction.GuildID, userId, tama)
 			if !canClaim {
 				errorMessage = reason
 			}
 		}
 
-		// Respond with feedback message
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: utils.Help(),
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
+		// Claim the egg
+		if errorMessage == "" {
+			tama.Owner = userId
+			err = db.StoreTama(interaction.GuildID, channelId, tama)
+			if err != nil {
+				errorMessage = fmt.Sprintf("Couldn't claim egg: %s", err.Error())
+			}
+		}
+
+		if errorMessage != "" {
+			// Respond with feedback message
+			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: errorMessage,
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+		} else {
+			message := fmt.Sprintf("<@%s> has just claimed Tama egg #%d!", userId, id)
+			// Respond with feedback message
+			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: message,
+				},
+			})
+		}
 	},
 }
