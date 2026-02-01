@@ -42,9 +42,9 @@ var Give = models.SlashCommand{
 		success := true
 
 		// Extract options/parameters
-		recipient := utils.utils.GetCommandOption(interaction, "recipient").UserValue(nil)
-		amount := utils.utils.GetCommandOption(interaction, "amount").FloatValue()
-		message := utils.utils.GetCommandOption(interaction, "message")
+		recipient := utils.GetCommandOption(interaction, "recipient").UserValue(nil)
+		amount := utils.GetCommandOption(interaction, "amount").FloatValue()
+		message := utils.GetCommandOption(interaction, "message")
 		var messageStr string
 		if message != nil {
 			messageStr = message.StringValue()
