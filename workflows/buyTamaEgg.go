@@ -2,10 +2,11 @@ package workflows
 
 import (
 	"log"
+	"time"
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
-	"github.com/janimationd/JacuzziBot/errors"
+	"github.com/janimationd/JacuzziBot/errs"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
 )
@@ -21,9 +22,11 @@ func makeTamaEgg(serverId string) (models.Tama, error) {
 
 	return models.Tama{
 		Id:             id,
-		IsEgg:          true,
 		PositiveTraits: &utils.Set[models.PositiveTrait]{},
 		NegativeTraits: &utils.Set[models.NegativeTrait]{},
+		Parents:        &utils.Set[models.JacuzziId]{},
+		Children:       &utils.Set[models.JacuzziId]{},
+		EggLaidTime:    time.Now().Unix(),
 		// Everything else is blank for an egg
 	}, err
 }
@@ -40,7 +43,7 @@ func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, 
 
 	// Make sure the user has room for another egg
 	if user.Tamas.Size() >= constants.TamaLimitPerUser {
-		err = errors.TamaLimitReachedError{}
+		err = errs.TamaLimitReachedError{}
 		log.Printf("%s -> User %s\n", err.Error(), userId)
 		return tama, user, err
 	}
