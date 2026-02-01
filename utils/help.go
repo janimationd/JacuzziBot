@@ -26,12 +26,10 @@ func Help() string {
 	result += "  - `/points [user]` - Check how many points someone has (omit the `user` to chickity-check yourself)\n"
 	result += "  - `/give <recipient> <amount> [message]` - Give someone else some of your points, optionally with a message\n"
 	result += "  - `/set-timezone <region> <city>` - Set your local timezone, which is used by other features\n"
+	result += "  - `/gamble <chance> <wager>` - Wager some of your points, gambling to maybe win back more\n"
 
 	result += "- Here are some other bot features with separate help pages:\n"
 	result += "  - `/tama-help` - Info on the Tama minigame where you hatch creatures from eggs and care for them\n"
-
-	result += "\nI'll get more ways for you to earn and spend points over time, so look forward to that!\n"
-	result += "\nTry to keep point farming to a minumum :wink:"
 
 	return result
 }

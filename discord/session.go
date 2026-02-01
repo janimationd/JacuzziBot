@@ -55,6 +55,8 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.Points)
 	add(&commands, &slashCommands.Give)
 	add(&commands, &slashCommands.SetTimezone)
+	add(&commands, &slashCommands.Gamble)
+	add(&commands, &slashCommands.Award)
 	// Tama minigame commands
 	add(&commands, &tama.TamaHelp)
 	add(&commands, &tama.RegisterTamaChannel)

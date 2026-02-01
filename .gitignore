@@ -3,3 +3,4 @@
 **/auth.json
 *.db
 *.exe
+.env
