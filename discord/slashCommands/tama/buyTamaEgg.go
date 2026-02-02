@@ -9,12 +9,12 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
-	"github.com/janimationd/JacuzziBot/workflows"
+	"github.com/janimationd/JacuzziBot/workflows/tama"
 )
 
-const commandName string = "BuyTamaEgg"
-const BuyTamaEggConfirmPurchaseId string = commandName + ":ConfirmPurchase"
-const BuyTamaEggCancelPurchaseId string = commandName + ":CancelPurchase"
+const buyTamaEggCommandName string = "BuyTamaEgg"
+const BuyTamaEggConfirmPurchaseId string = buyTamaEggCommandName + ":ConfirmPurchase"
+const BuyTamaEggCancelPurchaseId string = buyTamaEggCommandName + ":CancelPurchase"
 const minigameRoleName string = "Tama Pet Owners"
 
 func AddUserToMinigameRole(session *discordgo.Session, interaction *discordgo.InteractionCreate) error {
@@ -117,7 +117,7 @@ var BuyTamaEgg = models.SlashCommand{
 }
 
 func HandleBuyTamaEggConfirmPurchase(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-	tama, user, err := workflows.BuyTamaEgg(interaction.GuildID, interaction.ChannelID, interaction.Member.User.ID)
+	tama, user, err := tama.BuyTamaEggWorkflow(interaction.GuildID, interaction.ChannelID, interaction.Member.User.ID)
 
 	var channelMessage string
 	var responseMessage string

@@ -47,6 +47,9 @@ func TamaHelp() string {
 	result += fmt.Sprintf("  - `/buy-tama-egg` - Purchase a Tama egg for **%s point%s**. "+
 		"*You need to call `/set-timezone` before running this command.*\n",
 		FormatUIFloat(constants.TamaEggPurchaseCost), Plural(constants.TamaEggPurchaseCost))
+	result += fmt.Sprintf("  - `/claim-tama-egg <id>` - Claim an unclaimed Tama egg. "+
+		"Newly hatched eggs can only be claimed by the owners of their parent Tamas for %d day%s.\n",
+		constants.OnlyParentOwnersCanClaimDays, Plural(constants.OnlyParentOwnersCanClaimDays))
 
 	return result
 }

@@ -18,24 +18,18 @@ func claimNextJacuzziId(db *bolt.DB) (models.JacuzziId, error) {
 
 	// Do all the logic in the same transaction
 	err := db.Update(func(tx *bolt.Tx) error {
-		log.Printf("> 1\n")
 		// Create or fetch the IDs bucket
 		bucket, err := tx.CreateBucketIfNotExists([]byte(nextIdBucketName))
 		if err != nil {
-			log.Printf("> 2\n")
 			return err
 		}
-		log.Printf("> 3\n")
 		nextIdBytes := bucket.Get([]byte(nextIdKey))
 		// Key doesn't exist yet, create it.
 		if nextIdBytes == nil {
-			log.Printf("> 4\n")
 			nextId = 1
 		} else {
-			log.Printf("> 5\n")
 			nextId = models.JacuzziIdFromBytes(nextIdBytes)
 		}
-		log.Printf("> 6: %d\n", nextId)
 		return bucket.Put([]byte(nextIdKey), models.BytesFromJacuzziId(nextId+1))
 	})
 

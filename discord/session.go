@@ -2,6 +2,7 @@ package discord
 
 import (
 	"log"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -38,11 +39,19 @@ func registerInteractionCreateHandlers(session *discordgo.Session) {
 				slashCommands.TimezoneCityAutoComplete(s, i)
 			}
 		case discordgo.InteractionMessageComponent:
-			switch i.MessageComponentData().CustomID {
+			customId := i.MessageComponentData().CustomID
+			switch customId {
 			case tama.BuyTamaEggConfirmPurchaseId:
 				tama.HandleBuyTamaEggConfirmPurchase(s, i)
 			case tama.BuyTamaEggCancelPurchaseId:
 				tama.HandleBuyTamaEggCancelPurchase(s, i)
+			// Handle custom IDs that have information appended to them
+			default:
+				if strings.HasPrefix(customId, tama.TransferTamaAcceptTransferId) {
+					tama.HandleTransferTamaAcceptTransfer(s, i)
+				} else if strings.HasPrefix(customId, tama.TransferTamaCancelTransferId) {
+					tama.HandleTransferTamaCancelTransfer(s, i)
+				}
 			}
 		}
 	})
@@ -62,6 +71,7 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &tama.RegisterTamaChannel)
 	add(&commands, &tama.BuyTamaEgg)
 	add(&commands, &tama.ClaimTamaEgg)
+	add(&commands, &tama.TransferTama)
 
 	// Register the list of commands
 	for _, slashCommand := range commands {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/models"
 	bolt "go.etcd.io/bbolt"
 )
@@ -14,6 +15,7 @@ const tamaChannelKey string = tamaChannelBucketName
 const tamaMinigameRoleBucketName string = "TamaMinigameRole"
 const tamaMinigameRoleKey string = tamaMinigameRoleBucketName
 const tamaBucketName string = "Tamas"
+const tamaTransfersBucketName string = "TamaTransfers"
 
 func registerTamaChannel(db *bolt.DB, channelId string) error {
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -108,6 +110,51 @@ func getTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
 	return tama, err
 }
 
+func changeTamaOwner(
+	db *bolt.DB,
+	tamaId models.JacuzziId,
+	newOwnerId string,
+	replaceOwner bool,
+) (*models.Tama, error) {
+	tama := &models.Tama{}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaBucketName))
+		if err != nil {
+			return err
+		}
+		var tamaBytes []byte
+		if bucket != nil {
+			tamaBytes = bucket.Get(models.BytesFromJacuzziId(tamaId))
+		}
+		if tamaBytes == nil {
+			return fmt.Errorf("Tama doesn't exist.")
+		}
+
+		err = json.Unmarshal(tamaBytes, tama)
+		if err != nil {
+			return fmt.Errorf("Could not unmarshall Tama JSON")
+		}
+		// Check whether we're not allowed to replace the owner
+		if tama.IsOwned() && !replaceOwner {
+			return fmt.Errorf("Tama is already owned by <@%s>, cannot overwrite", tama.Owner)
+		}
+		tama.Owner = newOwnerId
+		tamaBytes, err = json.Marshal(tama)
+		if err != nil {
+			return fmt.Errorf("Could not marshall Tama to JSON")
+		}
+		return bucket.Put(models.BytesFromJacuzziId(tama.Id), tamaBytes)
+	})
+
+	if err != nil {
+		log.Println("Couldn't change Tama owner:", err)
+		return nil, err
+	}
+
+	return tama, nil
+}
+
 func getTamaMinigameRole(db *bolt.DB) string {
 	var minigameRoleId string
 
@@ -147,6 +194,98 @@ func registerTamaMinigameRole(db *bolt.DB, roleId string) error {
 		log.Println("Could not register Tama channel:", err)
 	}
 	return err
+}
+
+func createTamaTransfer(
+	db *bolt.DB,
+	tamaId models.JacuzziId,
+	oldOwnerId string,
+	newOwnerId string,
+) (*models.TamaTransfer, error) {
+	transfer := &models.TamaTransfer{
+		TamaId:     tamaId,
+		OldOwnerId: oldOwnerId,
+		NewOwnerId: newOwnerId,
+	}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaTransfersBucketName))
+		if err != nil {
+			return err
+		}
+
+		transferBytes := bucket.Get(models.BytesFromJacuzziId(tamaId))
+		if transferBytes != nil {
+			err = json.Unmarshal(transferBytes, transfer)
+			if err != nil {
+				return err
+			}
+
+			return fmt.Errorf("A pending transfer for Tama #%d already exists: <@%s> -> <@%s>. "+
+				"You'll have to cancel it before making a new one.",
+				tamaId, transfer.OldOwnerId, transfer.NewOwnerId)
+		}
+
+		transferBytes, err = json.Marshal(transfer)
+		if err != nil {
+			return err
+		}
+
+		err = bucket.Put(models.BytesFromJacuzziId(tamaId), transferBytes)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't create Tama transfer: %w", err)
+	}
+
+	return transfer, nil
+}
+
+func getTamaTransfer(db *bolt.DB, tamaId models.JacuzziId) (*models.TamaTransfer, error) {
+	transfer := &models.TamaTransfer{}
+
+	err := db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaTransfersBucketName))
+		if bucket == nil {
+			return fmt.Errorf("%s bucket doesn't exist on get%s",
+				tamaTransfersBucketName, constants.ErrorReportMessageSuffix)
+		}
+
+		transferBytes := bucket.Get(models.BytesFromJacuzziId(tamaId))
+		if transferBytes == nil {
+			return nil
+		}
+
+		err := json.Unmarshal(transferBytes, transfer)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't get Tama transfer: %w", err)
+	}
+
+	return transfer, nil
+}
+
+func deleteTamaTransfer(db *bolt.DB, tamaId models.JacuzziId) error {
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaTransfersBucketName))
+		if bucket == nil {
+			return fmt.Errorf("%s bucket doesn't exist on delete%s",
+				tamaTransfersBucketName, constants.ErrorReportMessageSuffix)
+		}
+
+		return bucket.Delete(models.BytesFromJacuzziId(tamaId))
+	})
 }
 
 func RegisterTamaChannel(serverId string, channelId string) error {
@@ -195,6 +334,23 @@ func GetTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
 	return getTama(db, tamaId)
 }
 
+// If replaceOwner is false, will return an error when the Tama is already owned by someone.
+func ChangeTamaOwner(
+	serverId string,
+	tamaId models.JacuzziId,
+	newOwnerId string,
+	replaceOwner bool,
+) (*models.Tama, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return changeTamaOwner(db, tamaId, newOwnerId, replaceOwner)
+}
+
 func GetTamaMinigameRole(serverId string) string {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -215,4 +371,42 @@ func RegisterTamaMinigameRole(serverId string, minigameRoleId string) error {
 	defer db.Close()
 
 	return registerTamaMinigameRole(db, minigameRoleId)
+}
+
+func CreateTamaTransfer(
+	serverId string,
+	tamaId models.JacuzziId,
+	oldOwnerId string,
+	newOwnerId string,
+) (*models.TamaTransfer, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return createTamaTransfer(db, tamaId, oldOwnerId, newOwnerId)
+}
+
+func GetTamaTransfer(serverId string, tamaId models.JacuzziId) (*models.TamaTransfer, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return getTamaTransfer(db, tamaId)
+}
+
+func DeleteTamaTransfer(serverId string, tamaId models.JacuzziId) error {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return deleteTamaTransfer(db, tamaId)
 }

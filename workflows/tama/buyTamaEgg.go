@@ -1,4 +1,4 @@
-package workflows
+package tama
 
 import (
 	"log"
@@ -32,7 +32,7 @@ func makeTamaEgg(serverId string) (models.Tama, error) {
 }
 
 // Buy a Tama egg. Creates one from scratch, and deducts the cost of purchase from the user.
-func BuyTamaEgg(serverId string, channelId string, userId string) (models.Tama, models.User, error) {
+func BuyTamaEggWorkflow(serverId string, channelId string, userId string) (models.Tama, models.User, error) {
 	var tama models.Tama
 	var user models.User
 
