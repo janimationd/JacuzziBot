@@ -155,6 +155,47 @@ func changeTamaOwner(
 	return tama, nil
 }
 
+func nameTama(
+	db *bolt.DB,
+	tamaId models.JacuzziId,
+	newName string,
+) (*models.Tama, error) {
+	tama := &models.Tama{}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaBucketName))
+		if err != nil {
+			return err
+		}
+		var tamaBytes []byte
+		if bucket != nil {
+			tamaBytes = bucket.Get(models.BytesFromJacuzziId(tamaId))
+		}
+		if tamaBytes == nil {
+			return fmt.Errorf("Tama doesn't exist.")
+		}
+
+		err = json.Unmarshal(tamaBytes, tama)
+		if err != nil {
+			return fmt.Errorf("Could not unmarshall Tama JSON")
+		}
+
+		tama.Name = newName
+		tamaBytes, err = json.Marshal(tama)
+		if err != nil {
+			return fmt.Errorf("Could not marshall Tama to JSON")
+		}
+		return bucket.Put(models.BytesFromJacuzziId(tama.Id), tamaBytes)
+	})
+
+	if err != nil {
+		log.Println("Couldn't name Tama:", err)
+		return nil, err
+	}
+
+	return tama, nil
+}
+
 func getTamaMinigameRole(db *bolt.DB) string {
 	var minigameRoleId string
 
@@ -349,6 +390,21 @@ func ChangeTamaOwner(
 	defer db.Close()
 
 	return changeTamaOwner(db, tamaId, newOwnerId, replaceOwner)
+}
+
+func NameTama(
+	serverId string,
+	tamaId models.JacuzziId,
+	newName string,
+) (*models.Tama, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return nameTama(db, tamaId, newName)
 }
 
 func GetTamaMinigameRole(serverId string) string {
