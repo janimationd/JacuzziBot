@@ -175,6 +175,21 @@ func nameTama(
 			return fmt.Errorf("Tama doesn't exist.")
 		}
 
+		// Ensure the uniqueness of the name across all Tamas.
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			otherId := models.JacuzziIdFromBytes(k)
+			// Skip this Tama
+			if otherId == tamaId {
+				continue
+			}
+			// Ignore errors
+			err := json.Unmarshal(v, tama)
+			if err == nil && tama.Name == newName {
+				return fmt.Errorf("Name already in use on Tama %d.", otherId)
+			}
+		}
+
 		err = json.Unmarshal(tamaBytes, tama)
 		if err != nil {
 			return fmt.Errorf("Could not unmarshall Tama JSON")

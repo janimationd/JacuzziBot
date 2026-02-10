@@ -2,6 +2,7 @@ package tama
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -57,6 +58,9 @@ var NameTama = models.SlashCommand{
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
 			} else if !user.Tamas.Contains(id) {
 				errorMessage = "You can only name Tamas that you own."
+			} else if utf8.RuneCountInString(newName) > constants.MaxTamaNameLength {
+				errorMessage = fmt.Sprintf("Tama names cannot exceed %d characters. Your name uses %d.",
+					constants.MaxTamaNameLength, utf8.RuneCountInString(newName))
 			}
 		}
 

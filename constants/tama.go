@@ -7,3 +7,6 @@ const TamaLimitPerUser = 10
 // can claim the egg. After this duration expires, anyone can claim the egg.
 const OnlyParentOwnersCanClaimDays = 3
 const OnlyParentOwnersCanClaimSeconds int64 = OnlyParentOwnersCanClaimDays * 24 * 60 * 60
+
+// Cannot name a Tama with more characters than this.
+const MaxTamaNameLength = 30
