@@ -11,6 +11,7 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
+	"github.com/janimationd/JacuzziBot/workflows/tamas"
 )
 
 // Returns whether or not the user can claim the egg, along with a reason if not.
@@ -117,6 +118,14 @@ var ClaimTamaEgg = models.SlashCommand{
 				if err != nil {
 					errorMessage += fmt.Sprintf(", also couldn't revert claim: %s", err.Error())
 				}
+			}
+		}
+
+		if errorMessage == "" {
+			err := tamas.AddUserToMinigameRole(session, serverId, userId)
+			if err != nil {
+				// Don't fail the whole command if this fails, just print it.
+				log.Println("Failed to add user to Tama minigame role:", err)
 			}
 		}
 

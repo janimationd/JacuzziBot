@@ -1,4 +1,4 @@
-package tama
+package tamas
 
 import (
 	"log"

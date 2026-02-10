@@ -11,7 +11,7 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
-	"github.com/janimationd/JacuzziBot/workflows/tama"
+	"github.com/janimationd/JacuzziBot/workflows/tamas"
 )
 
 const transferTamaCommandName string = "TransferTama"
@@ -171,7 +171,7 @@ func HandleTransferTamaAcceptTransfer(session *discordgo.Session, interaction *d
 	var tamaTransfer *models.TamaTransfer
 	if errorMessage == "" {
 		var err error
-		tamaTransfer, err = tama.TransferTamaWorkflow(serverId, tamaId, userId)
+		tamaTransfer, err = tamas.TransferTamaWorkflow(serverId, tamaId, userId, session, interaction)
 		if err != nil {
 			errorMessage = err.Error()
 		}

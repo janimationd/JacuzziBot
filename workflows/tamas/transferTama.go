@@ -1,9 +1,10 @@
-package tama
+package tamas
 
 import (
 	"fmt"
 	"log"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
@@ -13,6 +14,8 @@ func TransferTamaWorkflow(
 	serverId string,
 	tamaId models.JacuzziId,
 	userId string,
+	session *discordgo.Session,
+	interaction *discordgo.InteractionCreate,
 ) (*models.TamaTransfer, error) {
 	errorMessage := ""
 	var err error
@@ -87,6 +90,14 @@ func TransferTamaWorkflow(
 			if err != nil {
 				errorMessage += ", and couldn't rollback Tama owner change: " + err.Error()
 			}
+		}
+	}
+
+	if errorMessage == "" {
+		err := AddUserToMinigameRole(session, serverId, newOwnerId)
+		if err != nil {
+			// Don't fail the whole command if this fails, just print it.
+			log.Println("Failed to add user to Tama minigame role:", err)
 		}
 	}
 

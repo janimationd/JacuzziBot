@@ -9,37 +9,12 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
-	"github.com/janimationd/JacuzziBot/workflows/tama"
+	"github.com/janimationd/JacuzziBot/workflows/tamas"
 )
 
 const buyTamaEggCommandName string = "BuyTamaEgg"
 const BuyTamaEggConfirmPurchaseId string = buyTamaEggCommandName + ":ConfirmPurchase"
 const BuyTamaEggCancelPurchaseId string = buyTamaEggCommandName + ":CancelPurchase"
-const minigameRoleName string = "Tama Pet Owners"
-
-func AddUserToMinigameRole(session *discordgo.Session, interaction *discordgo.InteractionCreate) error {
-	roleId := db.GetTamaMinigameRole(interaction.GuildID)
-	if roleId == "" {
-		mentionable := true
-		role, err := session.GuildRoleCreate(interaction.GuildID, &discordgo.RoleParams{
-			Name:        minigameRoleName,
-			Mentionable: &mentionable,
-		})
-		if err != nil {
-			log.Println("Failed to create minigame role:", err)
-			return err
-		} else {
-			log.Println("Created minigame role.")
-		}
-		roleId = role.ID
-		err = db.RegisterTamaMinigameRole(interaction.GuildID, roleId)
-		if err != nil {
-			log.Println("Failed to register newly created minigame role:", err)
-			// We opt to continue rather than give up, this situation sucks regardless.
-		}
-	}
-	return session.GuildMemberRoleAdd(interaction.GuildID, interaction.Member.User.ID, roleId)
-}
 
 var BuyTamaEgg = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
@@ -117,20 +92,22 @@ var BuyTamaEgg = models.SlashCommand{
 }
 
 func HandleBuyTamaEggConfirmPurchase(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-	tama, user, err := tama.BuyTamaEggWorkflow(interaction.GuildID, interaction.ChannelID, interaction.Member.User.ID)
+	serverId := interaction.GuildID
+	userId := interaction.Member.User.ID
+	tama, user, err := tamas.BuyTamaEggWorkflow(serverId, interaction.ChannelID, userId)
 
 	var channelMessage string
 	var responseMessage string
 	if err == nil {
 		channelMessage += fmt.Sprintf(":egg: **<@%s> has purchased a Tama egg** with ID `%d`!\n\n",
-			interaction.Member.User.ID, tama.Id)
+			userId, tama.Id)
 
 		responseMessage += fmt.Sprintf("**Success!** You now have %s point%s.\n",
 			utils.FormatUIFloat(user.Points), utils.Plural(user.Points))
 		responseMessage += fmt.Sprintf("- Make sure to take care of it once a day using `/care-tama %d`.\n", tama.Id)
 		responseMessage += fmt.Sprintf("- You can check on the status of your egg with `/check-tama %d`.", tama.Id)
 		// Add the user to the minigame role for later ease of @-ing them.
-		AddUserToMinigameRole(session, interaction)
+		tamas.AddUserToMinigameRole(session, serverId, userId)
 	} else {
 		responseMessage = fmt.Sprintf("Couldn't complete egg purchase: %s", err.Error())
 	}

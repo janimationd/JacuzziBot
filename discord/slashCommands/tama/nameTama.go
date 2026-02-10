@@ -2,6 +2,7 @@ package tama
 
 import (
 	"fmt"
+	"strconv"
 	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
@@ -61,6 +62,14 @@ var NameTama = models.SlashCommand{
 			} else if utf8.RuneCountInString(newName) > constants.MaxTamaNameLength {
 				errorMessage = fmt.Sprintf("Tama names cannot exceed %d characters. Your name uses %d.",
 					constants.MaxTamaNameLength, utf8.RuneCountInString(newName))
+			}
+		}
+
+		// Make sure the name is not just a number
+		if errorMessage == "" {
+			_, err := strconv.ParseFloat(newName, 64)
+			if err == nil {
+				errorMessage = "A Tama name cannot be purely a number, so we can easily distinguish it from an ID."
 			}
 		}
 
