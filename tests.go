@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/janimationd/JacuzziBot/discord/slashCommands"
+	"github.com/janimationd/JacuzziBot/models"
 )
 
 // Define unit tests here. We don't require unit tests for every change, but some might be useful still.
@@ -12,5 +13,6 @@ func RunTestsIfRequested() {
 	if os.Getenv("RUN_UNIT_TESTS") == "true" {
 		// List all tests here
 		slashCommands.TestTimezones()
+		models.JacuzziIdTests()
 	}
 }
