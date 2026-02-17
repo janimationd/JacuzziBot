@@ -11,16 +11,19 @@ import (
 const scheduleDatabaseName = "ScheduledEvents"
 const scheduleBucketName = scheduleDatabaseName
 
-// What should the we do with the event after your operation completes?
+// What should we do with the event after your operation completes?
 type EventOperationResult int8
 
 const (
-	DoNothing   EventOperationResult = 0
+	// Don't do anything with the event afdter your operation completes.
+	DoNothing EventOperationResult = 0
+	// Update the event in the database after your operation completes (because you modified it).
 	UpdateEvent EventOperationResult = 1
+	// Delete the event in the database after your operation completes (because you no longer need it).
 	DeleteEvent EventOperationResult = 2
 )
 
-// You MUST NOT modify or read the database inside these operations, or we're at risk of deadlocking.
+// You MUST NOT read/modify the database inside these operations or we'll be at risk of deadlocking/undefined behavior.
 type ScheduledEventOperation = func(*models.ScheduledEvent) (EventOperationResult, error)
 
 func forEachScheduledEvent(db *bbolt.DB, op ScheduledEventOperation) error {

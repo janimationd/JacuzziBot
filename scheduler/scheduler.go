@@ -37,21 +37,22 @@ func setupCrucialEvents() {
 	// Create and append all scheduled events here. Examples (though they should each be defined in their own files):
 	//
 	// schedule = append(schedule, &ScheduledEvent{
-	// 	   name:     "ExampleRecurringEvent",
-	//     interval: 1 * time.Minute,
+	// 	   ID:                  "RecurringEvent",
+	//     Interval:            1 * time.Minute,
+	//     RestartGapTolerance: 5 * time.Minute,
 	//     ...
 	// })
 	//
 	// schedule = append(schedule, &ScheduledEvent{
-	// 	   name:     "ExampleOneOffEvent",
-	// 	   nextTime: time.Now().Add(30 * time.Second),
+	// 	   ID:       "OneOffEvent",
+	// 	   NextTime: time.Now().Add(30 * time.Second),
 	//     ...
 	// })
 
 	RegisterEventAndHandler(&events.VoiceCallPointAwarder, events.VoiceCallPointAwarderHandler, false)
 }
 
-const checkinterval = 1 * time.Second
+const checkInterval = 1 * time.Second
 
 // Setup and run the schedule.
 func Run(ctx context.Context) {
@@ -88,7 +89,7 @@ func Run(ctx context.Context) {
 		// This won't be perfectly accurate, but that's fine.
 		loopEndTime := time.Now()
 		loopDuration := loopEndTime.Sub(loopStartTime)
-		sleepDuration := max(checkinterval-loopDuration, 0)
+		sleepDuration := max(checkInterval-loopDuration, 0)
 		time.Sleep(sleepDuration)
 	}
 }

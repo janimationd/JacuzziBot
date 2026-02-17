@@ -8,11 +8,13 @@ import (
 
 // An event in the schedule.
 type ScheduledEvent struct {
-	// A server-unique ID for this event. This should also be descriptive, e.g. also function as an event name.
+	// A server-unique ID for this event. This should also be descriptive, e.g. also function as an event name. If
+	// you're generating many instances of an event from one part of code, you'll need to make sure this is unique
+	// somehow, for example, by appending a millisecond (or better) timestamp.
 	ID string
 	// The next scheduled time to trigger the event at. If zero, it means the event will not happen again.
 	NextTime time.Time
-	// How long between scheduled event triggers. If zero, it means nextTime will not be advanced after the next event.
+	// How long between scheduled event triggers. If zero, it means NextTime will not be advanced after the next event.
 	Interval time.Duration
 	// If this is a recurring event, this defines how long the bot has to be shut down for before we give up on trying
 	// to catch back up to where we were. For example: if Interval is X, this is Y, and the bot is shut down for longer
@@ -32,7 +34,7 @@ type ScheduledEvent struct {
 // by Interval for you after your handler is called.
 type EventHandler func(event *ScheduledEvent) bool
 
-// Set nextTime to be the next wall clock-aligned interval boundary.
+// Set NextTime to be the next wall clock-aligned Interval boundary.
 func (event *ScheduledEvent) Init() {
 	// Pre-scheduled events don't need to be initialized.
 	if !event.NextTime.IsZero() {
@@ -41,7 +43,7 @@ func (event *ScheduledEvent) Init() {
 
 	now := time.Now()
 	result := now.Round(event.Interval)
-	// If it rounded down, add one interval to get our next time.
+	// If it rounded down, add one Interval to get our next time.
 	if result.Before(now) {
 		result = result.Add(event.Interval)
 	}
@@ -54,7 +56,7 @@ func (event *ScheduledEvent) IsDone() bool {
 	return event.NextTime.IsZero()
 }
 
-// Advances the nextTime of the event to the next scheduled time after its current value. Returns whether the event
+// Advances the NextTime of the event to the next scheduled time after its current value. Returns whether the event
 // was modified.
 func (event *ScheduledEvent) updateNextTime() bool {
 	if event.NextTime.IsZero() {
@@ -63,7 +65,7 @@ func (event *ScheduledEvent) updateNextTime() bool {
 	}
 	if event.Interval == 0 {
 		log.Printf("ScheduledEvent \"%s\" will not execute again.\n", event.ID)
-		// Reset nextTime to 0.
+		// Reset NextTime to 0.
 		event.NextTime = time.Time{}
 		return true
 	}
