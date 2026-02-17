@@ -12,15 +12,16 @@ import (
 
 // When X people are in a voice call, award them each Y points every minute.
 var VoiceCallPointAwarder = models.ScheduledEvent{
-	ID:       "VoiceCallPointAwarder",
-	Interval: 1 * time.Minute,
-	Handler:  "VoiceCallPointAwarderHandler",
+	ID:                  "VoiceCallPointAwarder",
+	Interval:            1 * time.Minute,
+	Handler:             "VoiceCallPointAwarderHandler",
+	RestartGapTolerance: 5 * time.Minute,
 }
 
-func VoiceCallPointAwarderHandler(event *models.ScheduledEvent) {
+func VoiceCallPointAwarderHandler(event *models.ScheduledEvent) bool {
 	if discord.Session == nil {
 		log.Println("Discord session is nil, not checking voice calls.")
-		return
+		return false
 	}
 
 	// Iterate over all of the servers/guilds we're currently connected to.
@@ -44,4 +45,5 @@ func VoiceCallPointAwarderHandler(event *models.ScheduledEvent) {
 			}
 		}
 	}
+	return false
 }
