@@ -123,7 +123,7 @@ func ForEachScheduledEvent(op ScheduledEventOperation) error {
 	return forEachScheduledEvent(db, op)
 }
 
-// Adds a new event ot the schedule. Returns whether the event was added into the schedule in or not.
+// Adds a new event to the schedule. Returns whether the event was added into the schedule in or not.
 func ScheduleEvent(event *models.ScheduledEvent, overwriteIfPresent bool) (bool, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(scheduleDatabaseName)
