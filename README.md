@@ -7,6 +7,7 @@ The code is organized as follows:
 - `discord/`: logic specific to Discord. This bot might eventually evolve to interact with multiple services/APIs so this is where anything Discord-specific lives. The bot listens and responds to events from the Discord API by utilizing [the discordgo library](https://github.com/bwmarrin/discordgo).
 - `errors/`: custom error types
 - `models/`: model object types
+- `scheduler/`: code related to scheduled events
 - `utils/`: utility functions
 - `workflows/`: these are the "features" of the bot. After triggers have arrived we execute workflows which contain the "since this happened, do this" logic. Ideally these workflows are agnostic to the models of any specific service or API.
 

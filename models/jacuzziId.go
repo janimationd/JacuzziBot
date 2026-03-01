@@ -24,6 +24,7 @@ func BytesFromJacuzziId(id JacuzziId) []byte {
 	return binary.LittleEndian.AppendUint64(nil, id)
 }
 
+// Unit tests to verify the above functions.
 func JacuzziIdTests() {
 	var id JacuzziId = 3
 	bytes := BytesFromJacuzziId(id)
