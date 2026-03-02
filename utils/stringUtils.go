@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/janimationd/JacuzziBot/constants"
 )
@@ -35,4 +36,46 @@ func Plural(amount float64) string {
 		return "s"
 	}
 	return ""
+}
+
+// Roughly describes a duration of time in a human-readable format, e.g. "15 minutes" or "3 months".
+func FormatUIDuration(duration time.Duration) string {
+	const oneDay = 24 * time.Hour
+	// We approximate 1 month as 30 days; sue me.
+	const oneMonth = 30 * oneDay
+	// Same thing, 365 days are a year.
+	const oneYear = 365 * oneDay
+
+	switch {
+	case 0 <= duration && duration < time.Minute:
+		amount := int64(duration.Seconds())
+		return fmt.Sprintf("%d second%s", amount, Plural(float64(amount)))
+	case time.Minute <= duration && duration < time.Hour:
+		amount := int64(duration.Minutes())
+		return fmt.Sprintf("%d minute%s", amount, Plural(float64(amount)))
+	case time.Hour <= duration && duration < oneDay:
+		amount := int64(duration.Hours())
+		return fmt.Sprintf("%d hour%s", amount, Plural(float64(amount)))
+	case oneDay <= duration && duration < oneMonth:
+		amount := int64(duration.Hours() / 24)
+		return fmt.Sprintf("%d day%s", amount, Plural(float64(amount)))
+	case oneMonth <= duration && duration < oneYear:
+		amount := int64(duration.Hours() / 24 / 30)
+		return fmt.Sprintf("%d month%s", amount, Plural(float64(amount)))
+	default:
+		amount := int64(duration.Hours() / 24 / 365)
+		return fmt.Sprintf("%d years%s", amount, Plural(float64(amount)))
+	}
+}
+
+// Get the sign string of the numeric values ("-" for negatives, "" for zero, and "+" for positives).
+func SignString(val float64) string {
+	switch {
+	case val < 0:
+		return "-"
+	case val > 0:
+		return "+"
+	default:
+		return ""
+	}
 }

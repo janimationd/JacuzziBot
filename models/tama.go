@@ -1,6 +1,10 @@
 package models
 
 import (
+	"fmt"
+	"log"
+	"time"
+
 	"github.com/janimationd/JacuzziBot/utils"
 )
 
@@ -24,6 +28,9 @@ const (
 
 const moodLimit Mood = 10
 const relationshipScoreLimit RelationshipScore = 5
+
+// After the egg has been cared for for this many days, it then hatches.
+const eggCareHatchThreshold uint8 = 3
 
 // A Tama pet
 type Tama struct {
@@ -49,6 +56,10 @@ type Tama struct {
 	EggLaidTime int64
 	// When the egg was hatched in seconds since Unix epoch. We consider this the Tama's "birth" time too.
 	HatchedTime int64
+	// How many times the egg has been cared for. Once this reaches eggCareHatchThreshold the egg will hatch.
+	EggCareCount uint8
+	// The last time the Tama/egg was cared for in seconds since Unix epoch.
+	LastCareTime int64
 }
 
 // Whether the Tama is alive or dead.
@@ -82,7 +93,78 @@ func (this *Tama) IsEgg() bool {
 	return this.HatchedTime == 0
 }
 
-// Returns if this is fully hatched pet already.
+// Returns if this is a fully hatched pet already.
 func (this *Tama) HasHatched() bool {
 	return !this.IsEgg()
+}
+
+// Get the Name and Id of the Tama (if it haws a name) or just its Id.
+func (this *Tama) GetNameAndId() string {
+	if this.Name != "" {
+		return fmt.Sprintf("%s (ID %d)", this.Name, this.Id)
+	} else {
+		return fmt.Sprint(this.Id)
+	}
+}
+
+// Get a string describing the Tama's mood.
+func (this *Tama) GetMoodString() string {
+	moodDesc := ""
+	switch this.Mood {
+	case -10:
+		moodDesc = "dead"
+	case -9, -8:
+		moodDesc = "dying"
+	case -7, -6, -5:
+		moodDesc = "depressed"
+	case -4, -3:
+		moodDesc = "upset"
+	case -2, -1:
+		moodDesc = "sad"
+	//////////////////
+	case 0:
+		moodDesc = "bored"
+	//////////////////
+	case 1, 2:
+		moodDesc = "content"
+	case 3, 4:
+		moodDesc = "happy"
+	case 5, 6, 7:
+		moodDesc = "excited"
+	case 8, 9:
+		moodDesc = "ecstatic"
+	case 10:
+		moodDesc = "glowing"
+	}
+
+	if moodDesc == "" {
+		// Shouldn't get here
+		log.Printf("Tama %d had an invalid mood value %d.\n", this.Id, this.Mood)
+		if this.Mood < -moodLimit {
+			moodDesc = "dead"
+		} else if this.Mood > moodLimit {
+			moodDesc = "glowing"
+		} else {
+			moodDesc = "confused"
+		}
+	}
+
+	return fmt.Sprintf("%s (mood %s%d)", moodDesc, utils.SignString(float64(this.Mood)), this.Mood)
+}
+
+// Get a string status message for this Tama.
+func (this *Tama) StatusMessage() string {
+	result := ""
+	if this.IsEgg() {
+		careCountBeforeHatching := eggCareHatchThreshold - this.EggCareCount
+		result = fmt.Sprintf("Egg %d has been cared for %d times (needs %d more to hatch)",
+			this.Id, this.EggCareCount, careCountBeforeHatching)
+	} else {
+		result = fmt.Sprintf("Tama %s is %s", this.GetNameAndId(), this.GetMoodString())
+		if this.IsAlive() {
+			age := time.Since(time.Unix(this.HatchedTime, 0))
+			result += fmt.Sprintf(" and %s old", utils.FormatUIDuration(age))
+		}
+	}
+	return result
 }

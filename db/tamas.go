@@ -379,6 +379,7 @@ func StoreTama(serverId string, channelId string, tama *models.Tama) error {
 	return storeTama(db, channelId, tama)
 }
 
+// Get the Tama from the database. Returns a descriptive error if the Tama doesn't exist.
 func GetTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
