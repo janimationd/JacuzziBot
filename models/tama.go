@@ -3,34 +3,38 @@ package models
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"time"
 
+	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/utils"
 )
 
-type PositiveTrait uint64
-type NegativeTrait uint64
+type PositiveTrait uint16
+type NegativeTrait uint16
+type Hunger = uint8
 type Mood = int8
 type RelationshipScore = int8
 
 const (
-	Friendly        PositiveTrait = 0
-	SocialButterfly PositiveTrait = 1
-	Sympathetic     PositiveTrait = 2
-	Fertile         PositiveTrait = 3
+	Friendly PositiveTrait = iota
+	SocialButterfly
+	Sympathetic
+	Fertile
+	// New ones should go above this
+	PositiveTraitMax
 )
 
 const (
-	Bully    NegativeTrait = 0
-	Jealous  NegativeTrait = 1
-	Annoying NegativeTrait = 2
+	Bully NegativeTrait = iota
+	Jealous
+	Annoying
+	// New ones should go above this
+	NegativeTraitMax
 )
 
 const moodLimit Mood = 10
 const relationshipScoreLimit RelationshipScore = 5
-
-// After the egg has been cared for for this many days, it then hatches.
-const eggCareHatchThreshold uint8 = 3
 
 // A Tama pet
 type Tama struct {
@@ -40,6 +44,9 @@ type Tama struct {
 	Owner string
 	// The user-configured name of the Tama after it has hatched.
 	Name string
+	// How hungry the Tama is. Starts at 0, and increases by 1 at midnight each day. Feeding reduces it by 1.
+	// Before its hunger increases each day, its hunger at the end of the last day is used to decrease its mood.
+	Hunger Hunger
 	// The mood of the Tama pet after it has hatched. Range [-10, 10], -10 = dead.
 	Mood Mood
 	// How much this Tama likes other Tamas it has interacted with. Range [-5, 5].
@@ -156,7 +163,7 @@ func (this *Tama) GetMoodString() string {
 func (this *Tama) StatusMessage() string {
 	result := ""
 	if this.IsEgg() {
-		careCountBeforeHatching := eggCareHatchThreshold - this.EggCareCount
+		careCountBeforeHatching := constants.EggCareHatchThreshold - this.EggCareCount
 		result = fmt.Sprintf("Egg %d has been cared for %d times (needs %d more to hatch)",
 			this.Id, this.EggCareCount, careCountBeforeHatching)
 	} else {
@@ -167,4 +174,29 @@ func (this *Tama) StatusMessage() string {
 		}
 	}
 	return result
+}
+
+func randomlyChooseNOptions[T utils.Integer](n uint, max T) *utils.Set[T] {
+	values := make([]T, max)
+	for i := T(0); i < max; i++ {
+		values[i] = i
+	}
+
+	rand.Shuffle(len(values), func(i, j int) {
+		values[i], values[j] = values[j], values[i]
+	})
+
+	result := &utils.Set[T]{}
+	for i := uint(0); i < n; i++ {
+		result.Add(values[i])
+	}
+
+	return result
+}
+
+// Hatch!
+func (this *Tama) Hatch() {
+	this.HatchedTime = time.Now().Unix()
+	this.PositiveTraits = randomlyChooseNOptions(2, PositiveTraitMax)
+	this.NegativeTraits = randomlyChooseNOptions(1, NegativeTraitMax)
 }

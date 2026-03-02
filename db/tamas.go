@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/models"
@@ -209,6 +210,79 @@ func nameTama(
 	}
 
 	return tama, nil
+}
+
+func careForTama(db *bolt.DB, tamaId models.JacuzziId, userTimezone *time.Location) (*models.Tama, bool, error) {
+	tama := &models.Tama{}
+	hatched := false
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaBucketName))
+		if err != nil {
+			return err
+		}
+
+		idBytes := models.BytesFromJacuzziId(tamaId)
+		tamaBytes := bucket.Get(idBytes)
+		if tamaBytes == nil {
+			return fmt.Errorf("Tama doesn't exist.")
+		}
+
+		err = json.Unmarshal(tamaBytes, tama)
+		if err != nil {
+			return fmt.Errorf("Could not unmarshall Tama JSON")
+		}
+
+		if !tama.IsAlive() {
+			return fmt.Errorf("Tama %s is dead, and can no longer be cared for.", tama.GetNameAndId())
+		}
+
+		// Figure out the cooldown we need to use
+		var cooldown time.Duration
+		if tama.IsEgg() {
+			cooldown = constants.EggCareCooldown
+		} else {
+			cooldown = constants.TamaCareCooldown
+		}
+
+		// If the cooldown hasn't yet expired
+		cooldownExpireTime := time.Unix(tama.LastCareTime, 0).Add(cooldown)
+		if time.Now().Before(cooldownExpireTime) {
+			return fmt.Errorf("This action is still cooling down; you will be able to perform it again at %s.",
+				cooldownExpireTime.In(userTimezone).String())
+		}
+
+		tama.LastCareTime = time.Now().Unix()
+		if tama.IsEgg() {
+			tama.EggCareCount++
+			// Time to hatch!
+			if tama.EggCareCount >= constants.EggCareHatchThreshold {
+				tama.Hatch()
+				hatched = true
+			}
+		} else {
+			tama.ModifyMood(1)
+		}
+
+		// Save it back to the DB
+		tamaBytes, err = json.Marshal(tama)
+		if err != nil {
+			return fmt.Errorf("Could not marshall Tama to JSON")
+		}
+
+		err = bucket.Put(idBytes, tamaBytes)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, false, err
+	}
+
+	return tama, hatched, nil
 }
 
 func getTamaMinigameRole(db *bolt.DB) string {
@@ -421,6 +495,23 @@ func NameTama(
 	defer db.Close()
 
 	return nameTama(db, tamaId, newName)
+}
+
+// Care for the Tama. If it is an egg, this moight cause it to hatch, in which case we return true for the second
+// return value.
+func CareForTama(
+	serverId string,
+	tamaId models.JacuzziId,
+	userTimezone *time.Location,
+) (*models.Tama, bool, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, false, err
+	}
+	defer db.Close()
+
+	return careForTama(db, tamaId, userTimezone)
 }
 
 func GetTamaMinigameRole(serverId string) string {
