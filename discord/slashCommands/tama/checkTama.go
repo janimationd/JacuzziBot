@@ -75,7 +75,7 @@ var CheckTama = models.SlashCommand{
 					if err != nil {
 						// Swallow and log the error, continuing through the list of ones we can describe.
 						log.Printf("Failed to load tama %d's details: %s\n", id, err.Error())
-					} else {
+					} else if tama.IsAlive() { // Skip any dead Tamas
 						message += fmt.Sprintf("\n- %s", tama.StatusMessage())
 					}
 				}
