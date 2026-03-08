@@ -2,7 +2,6 @@ package tama
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -57,8 +56,13 @@ var CheckTama = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
-			} else if !useSingleId && user.Tamas.Size() == 0 {
-				errorMessage = "You don't own any Tamas."
+			} else if !useSingleId {
+				tamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				if err != nil {
+					errorMessage = fmt.Sprintf("Couldn't fetch list of Tamas owned by you: %s", err.Error())
+				} else if len(tamas) == 0 {
+					errorMessage = "You don't own any Tamas."
+				}
 			}
 		}
 
@@ -83,13 +87,14 @@ var CheckTama = models.SlashCommand{
 				}
 			} else {
 				message = "# All Tamas you own:\n"
-				for id := range user.Tamas.All() {
-					tama, err := db.GetTama(serverId, id)
-					if err != nil {
-						// Swallow and log the error, continuing through the list of ones we can describe.
-						log.Printf("Failed to load tama %d's details: %s\n", id, err.Error())
-					} else if tama.IsAlive() { // Skip any dead Tamas
-						message += tamas.GetTamaStatus(tama, timezone, "##")
+				ownedTamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				if err != nil {
+					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
+				} else {
+					for _, tama := range ownedTamas {
+						if tama.IsAlive() { // Skip any dead Tamas
+							message += tamas.GetTamaStatus(tama, timezone, "##")
+						}
 					}
 				}
 			}

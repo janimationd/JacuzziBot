@@ -77,9 +77,6 @@ var ClaimTamaEgg = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
-			} else if user.Tamas.Size() >= constants.TamaLimitPerUser {
-				errorMessage = fmt.Sprintf("You're already at the limit of how many Tamas you can own: %d.",
-					constants.TamaLimitPerUser)
 			}
 		}
 
@@ -105,19 +102,6 @@ var ClaimTamaEgg = models.SlashCommand{
 			tama, err = db.ChangeTamaOwner(serverId, id, userId, false)
 			if err != nil {
 				errorMessage = err.Error()
-			}
-		}
-
-		// Add ID to user's owned Tamas
-		if errorMessage == "" {
-			user, err = db.ModifyUserTamas(serverId, userId, db.Add, id)
-			if err != nil {
-				errorMessage = fmt.Sprintf("Couldn't claim egg: %s", err.Error())
-				// Try to undo setting the egg's owner
-				tama, err = db.ChangeTamaOwner(serverId, id, "", true)
-				if err != nil {
-					errorMessage += fmt.Sprintf(", also couldn't revert claim: %s", err.Error())
-				}
 			}
 		}
 

@@ -244,7 +244,7 @@ func careForTama(
 
 		nextCareTime := tama.GetNextCareTime()
 		if time.Now().Before(nextCareTime) {
-			return fmt.Errorf("This action is still cooling down.\nYou will be able to perform it again at `%s`.",
+			return fmt.Errorf("This action is still cooling down.\n\nYou will be able to perform it again at `%s`.",
 				nextCareTime.In(userTimezone).String())
 		}
 
@@ -331,6 +331,42 @@ func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
 	}
 
 	return tama, nil
+}
+
+func getAllTamasOwnedByUser(db *bolt.DB, userId string) map[models.JacuzziId]*models.Tama {
+	tamas := make(map[models.JacuzziId]*models.Tama)
+
+	db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaBucketName))
+		if bucket == nil {
+			return nil
+		}
+
+		bucket.ForEach(func(k, v []byte) error {
+			tamaId := models.JacuzziIdFromBytes(k)
+			if tamaId == models.NoId {
+				log.Printf("Invalid Tama ID DB key: %s\n", string(k))
+				return nil
+			}
+
+			tama := &models.Tama{}
+			err := json.Unmarshal(v, tama)
+			if err != nil {
+				log.Printf("Invalid Tama JSON bytes: %s\n", string(v))
+				return nil
+			}
+
+			if tama.Owner == userId {
+				// Populate the map
+				tamas[tamaId] = tama
+			}
+			return nil
+		})
+
+		return nil
+	})
+
+	return tamas
 }
 
 func getTamaMinigameRole(db *bolt.DB) string {
@@ -573,6 +609,18 @@ func FeedTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
 	defer db.Close()
 
 	return feedTama(db, tamaId)
+}
+
+// Get a set of all Tamas owned by the user.
+func GetAllTamasOwnedByUser(serverId string, userId string) (map[models.JacuzziId]*models.Tama, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return getAllTamasOwnedByUser(db, userId), nil
 }
 
 func GetTamaMinigameRole(serverId string) string {

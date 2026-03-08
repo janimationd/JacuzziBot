@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 )
@@ -29,14 +28,6 @@ func TransferTamaWorkflow(
 	oldOwnerId := tamaTransfer.OldOwnerId
 	newOwnerId := tamaTransfer.NewOwnerId
 
-	var newOwnerUser models.User
-	if errorMessage == "" {
-		newOwnerUser, err = db.GetUser(serverId, newOwnerId)
-		if err != nil {
-			errorMessage = "Couldn't fetch user details: " + err.Error()
-		}
-	}
-
 	var tama *models.Tama
 	if errorMessage == "" {
 		tama, err = db.GetTama(serverId, tamaId)
@@ -49,9 +40,6 @@ func TransferTamaWorkflow(
 	if errorMessage == "" {
 		if userId != newOwnerId {
 			errorMessage = "Only the recipient can accept the transfer."
-		} else if newOwnerUser.Tamas.Size() >= constants.TamaLimitPerUser {
-			errorMessage = fmt.Sprintf("You are already at the limit of how many Tamas you can own: %d.",
-				constants.TamaLimitPerUser)
 		} else if tama.Owner == newOwnerId {
 			errorMessage = "The Tama has already been transferred to you."
 		} else if tama.Owner != oldOwnerId {
@@ -65,31 +53,6 @@ func TransferTamaWorkflow(
 		_, err = db.ChangeTamaOwner(serverId, tamaId, newOwnerId, true)
 		if err != nil {
 			errorMessage = "Couldn't update Tama owner: " + err.Error()
-		}
-	}
-
-	// Update both users' lists of owned Tamas, being careful to rollback all state changes so far on error.
-	if errorMessage == "" {
-		_, err = db.ModifyUserTamas(serverId, oldOwnerId, db.Remove, tamaId)
-		if err != nil {
-			errorMessage = "Couldn't remove Tama from original owner: " + err.Error()
-		} else {
-			_, err = db.ModifyUserTamas(serverId, newOwnerId, db.Add, tamaId)
-			if err != nil {
-				errorMessage = "Couldn't add Tama to new owner: " + err.Error()
-
-				_, err = db.ModifyUserTamas(serverId, oldOwnerId, db.Add, tamaId)
-				if err != nil {
-					errorMessage += ", and couldn't rollback Tama removal from original owner: " + err.Error()
-				}
-			}
-		}
-
-		if errorMessage != "" {
-			_, err = db.ChangeTamaOwner(serverId, tamaId, oldOwnerId, true)
-			if err != nil {
-				errorMessage += ", and couldn't rollback Tama owner change: " + err.Error()
-			}
 		}
 	}
 

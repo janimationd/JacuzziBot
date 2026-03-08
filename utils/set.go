@@ -2,6 +2,8 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -103,4 +105,15 @@ func (s *Set[T]) UnmarshalJSON(data []byte) error {
 		s.data[item] = struct{}{}
 	}
 	return nil
+}
+
+func (s *Set[T]) ToString() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	parts := make([]string, 0, len(s.data))
+	for v := range s.data {
+		parts = append(parts, fmt.Sprintf("%v", v))
+	}
+	return strings.Join(parts, ", ")
 }

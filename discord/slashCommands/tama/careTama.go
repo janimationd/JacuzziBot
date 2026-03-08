@@ -50,8 +50,13 @@ var CareTama = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
-			} else if !user.Tamas.Contains(id) {
-				errorMessage = "You can only care for Tamas that you own."
+			} else {
+				tamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				if err != nil {
+					errorMessage = fmt.Sprintf("Couldn't fetch list of Tamas owned by you: %s", err.Error())
+				} else if tamas[id] == nil {
+					errorMessage = "You can only care for Tamas that you own."
+				}
 			}
 		}
 

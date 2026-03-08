@@ -1,14 +1,12 @@
 package db
 
 import (
-	"fmt"
 	"log"
 
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/janimationd/JacuzziBot/errs"
 	"github.com/janimationd/JacuzziBot/models"
-	"github.com/janimationd/JacuzziBot/utils"
 )
 
 const usersBucketName string = "Users"
@@ -28,7 +26,6 @@ func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
 			user = models.User{
 				UserId: userId,
 				Points: 0,
-				Tamas:  &utils.Set[models.JacuzziId]{},
 			}
 			userJson, err = models.ToJsonBytes(user)
 			if err != nil {
@@ -40,11 +37,6 @@ func getOrCreateUser(db *bolt.DB, userId string) (models.User, error) {
 			user, err = models.FromJsonBytes[models.User](userJson)
 			if err != nil {
 				log.Println("Error unmarshalling user: ", err)
-			}
-
-			// Create the Tamas Set if it doesn't exist yet
-			if user.Tamas == nil {
-				user.Tamas = &utils.Set[models.JacuzziId]{}
 			}
 			return nil
 		}
@@ -73,7 +65,6 @@ func setUserTimezone(db *bolt.DB, userId string, timezone string) (models.User, 
 			// User is not in database yet, so create a new record for them
 			user = models.User{
 				UserId: userId,
-				Tamas:  &utils.Set[models.JacuzziId]{},
 			}
 		} else {
 			// User is in database already, so update their record
@@ -84,11 +75,6 @@ func setUserTimezone(db *bolt.DB, userId string, timezone string) (models.User, 
 			}
 		}
 		user.Timezone = timezone
-
-		// Create the Tamas Set if it doesn't exist yet
-		if user.Tamas == nil {
-			user.Tamas = &utils.Set[models.JacuzziId]{}
-		}
 
 		userJson, err = models.ToJsonBytes(user)
 		if err != nil {
@@ -125,7 +111,6 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 			user = models.User{
 				UserId: userId,
 				Points: 0,
-				Tamas:  &utils.Set[models.JacuzziId]{},
 			}
 		} else {
 			// User is in database already, so update their record
@@ -137,11 +122,6 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 		}
 		originalPoints = user.Points
 		user.Points += pointsDelta
-
-		// Create the Tamas Set if it doesn't exist yet
-		if user.Tamas == nil {
-			user.Tamas = &utils.Set[models.JacuzziId]{}
-		}
 
 		// If their new point value would be negative, reject the action.
 		if user.Points < 0 {
@@ -173,76 +153,6 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 	return user, err
 }
 
-func modifyUserTamas(
-	db *bolt.DB,
-	userId string,
-	op Operation,
-	tamaId models.JacuzziId,
-) (models.User, error) {
-	var user models.User
-
-	// Encapsulate all logic in a transaction to avoid race conditions
-	err := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(usersBucketName))
-		if err != nil {
-			return err
-		}
-
-		// Fetch/create current state
-		userJson := bucket.Get([]byte(userId))
-		if userJson == nil {
-			user = models.User{
-				UserId: userId,
-				Tamas:  &utils.Set[models.JacuzziId]{},
-			}
-		} else {
-			// User is in database already, so update their record
-			user, err = models.FromJsonBytes[models.User](userJson)
-			if err != nil {
-				log.Println("Error unmarshalling user: ", err)
-				return err
-			}
-		}
-
-		// Create the Tamas Set if it doesn't exist yet
-		if user.Tamas == nil {
-			user.Tamas = &utils.Set[models.JacuzziId]{}
-		}
-
-		// Modify state
-		switch op {
-		case Add:
-			user.Tamas.Add(tamaId)
-		case Remove:
-			removed := user.Tamas.Remove(tamaId)
-			if !removed {
-				message := fmt.Sprintf("User %s does not currently own Tama %d, so cannot remove it.", userId, tamaId)
-				log.Println(message)
-				return fmt.Errorf(message)
-			}
-		}
-
-		// Save new state back to DB
-		userJson, err = models.ToJsonBytes(user)
-		if err != nil {
-			log.Println("Error marshalling user: ", err)
-			return err
-		}
-		err = bucket.Put([]byte(userId), userJson)
-		if err == nil {
-			log.Printf("User %s's Tamas were modified for Tama %d.\n", user.UserId, tamaId)
-		}
-		return err
-	})
-
-	if user == (models.User{}) || err != nil {
-		log.Println("Unknown error, could not modify Tamas for user record:", err)
-		return user, err
-	}
-
-	return user, err
-}
-
 func GetUser(serverId string, userId string) (models.User, error) {
 	var user models.User
 
@@ -267,25 +177,6 @@ func ModifyUserPoints(serverId string, userId string, pointsDelta float64) (mode
 	defer db.Close()
 
 	return modifyUserPoints(db, userId, pointsDelta)
-}
-
-// wasPurchase isn't used when op is Remove
-func ModifyUserTamas(
-	serverId string,
-	userId string,
-	op Operation,
-	tamaId models.JacuzziId,
-) (models.User, error) {
-	var user models.User
-
-	// Create or open a server-specific database file
-	db, err := getDb(serverId)
-	if err != nil {
-		return user, err
-	}
-	defer db.Close()
-
-	return modifyUserTamas(db, userId, op, tamaId)
 }
 
 func SetUserTimezone(serverId string, userId string, timezone string) (models.User, error) {

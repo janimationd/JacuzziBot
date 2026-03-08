@@ -74,9 +74,6 @@ var TransferTama = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
-			} else if newOwnerUser.Tamas.Size() >= constants.TamaLimitPerUser {
-				errorMessage = fmt.Sprintf("<@%s> is already at the limit of how many Tamas they can own: %d.",
-					newOwnerId, constants.TamaLimitPerUser)
 			} else if newOwnerUser.Timezone == "" {
 				errorMessage = fmt.Sprintf("<@%s> must run `/set-timezone` before receiving a Tama.", newOwnerId)
 			}

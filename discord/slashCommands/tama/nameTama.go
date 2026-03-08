@@ -57,11 +57,16 @@ var NameTama = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
-			} else if !user.Tamas.Contains(id) {
-				errorMessage = "You can only name Tamas that you own."
 			} else if utf8.RuneCountInString(newName) > constants.MaxTamaNameLength {
 				errorMessage = fmt.Sprintf("Tama names cannot exceed %d characters. Your name uses %d.",
 					constants.MaxTamaNameLength, utf8.RuneCountInString(newName))
+			} else {
+				ownedTamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				if err != nil {
+					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
+				} else if ownedTamas[id] == nil {
+					errorMessage = "You can only name Tamas that you own."
+				}
 			}
 		}
 

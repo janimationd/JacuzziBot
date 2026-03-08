@@ -52,8 +52,13 @@ var FeedTama = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
-			} else if !user.Tamas.Contains(id) {
-				errorMessage = "You can only feed Tamas that you own."
+			} else {
+				ownedTamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				if err != nil {
+					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
+				} else if ownedTamas[id] == nil {
+					errorMessage = "You can only name Tamas that you own."
+				}
 			}
 		}
 
@@ -66,11 +71,14 @@ var FeedTama = models.SlashCommand{
 			}
 		}
 
+		// If the tama is an egg
+		if errorMessage == "" && tama.IsEgg() {
+			errorMessage = "This Tama is still an egg. You can only feed it after it hatches."
+		}
+
 		// See if the Tama needs to be fed
-		if errorMessage == "" {
-			if tama.Hunger == 0 {
-				errorMessage = "This Tama is already full. You don't need to feed it again until tomorrow (your local time)."
-			}
+		if errorMessage == "" && tama.Hunger == 0 {
+			errorMessage = "This Tama is already full. You don't need to feed it again until tomorrow (your local time)."
 		}
 
 		const cost = constants.TamaFeedCost
@@ -108,8 +116,15 @@ var FeedTama = models.SlashCommand{
 			message = errorMessage
 			flags = discordgo.MessageFlagsEphemeral
 		} else {
-			message = fmt.Sprintf("<@%s> has fed %s one food, purchased with %s point%s.\n\nNow they have %s point%s.",
-				userId, tama.GetNameAndId(), utils.FormatUIFloat(cost), utils.Plural(cost),
+			message = fmt.Sprintf("<@%s> has fed %s one food, ", userId, tama.GetNameAndId())
+			if tama.Hunger > 0 {
+				message += fmt.Sprintf("and it's still hungry! Feed it %d more time%s to satisfy its hunger.",
+					tama.Hunger, utils.Plural(tama.Hunger))
+			} else {
+				message += "and now it's full!"
+			}
+			message += fmt.Sprintf("\n\nThe food cost %s point%s, so they now have %s point%s.",
+				utils.FormatUIFloat(cost), utils.Plural(cost),
 				utils.FormatUIFloat(user.Points), utils.Plural(user.Points))
 		}
 

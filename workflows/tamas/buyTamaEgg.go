@@ -5,7 +5,6 @@ import (
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
-	"github.com/janimationd/JacuzziBot/errs"
 	"github.com/janimationd/JacuzziBot/models"
 )
 
@@ -17,13 +16,6 @@ func BuyTamaEggWorkflow(serverId string, channelId string, userId string) (model
 	user, err := db.GetUser(serverId, userId)
 	if err != nil {
 		log.Printf("Could not fetch user details for %s: %s\n", userId, err.Error())
-	}
-
-	// Make sure the user has room for another egg
-	if user.Tamas.Size() >= constants.TamaLimitPerUser {
-		err = errs.TamaLimitReachedError{}
-		log.Printf("%s -> User %s\n", err.Error(), userId)
-		return tama, user, err
 	}
 
 	cost := constants.TamaEggPurchaseCost
@@ -42,10 +34,6 @@ func BuyTamaEggWorkflow(serverId string, channelId string, userId string) (model
 		tama.Owner = userId
 		// Store the Tama's details in the DB.
 		err = db.StoreTama(serverId, channelId, &tama)
-	}
-	// Mark the user as the owner of this Tama and increment their purchase count.
-	if err == nil {
-		user, err = db.ModifyUserTamas(serverId, userId, db.Add, tama.Id)
 	}
 
 	if err != nil {
