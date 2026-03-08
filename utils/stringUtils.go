@@ -69,7 +69,7 @@ func FormatUIDuration(duration time.Duration) string {
 }
 
 // Get the sign string of the numeric values ("-" for negatives, "" for zero, and "+" for positives).
-func SignString(val float64) string {
+func SignString[T Number](val T) string {
 	switch {
 	case val < 0:
 		return "-"

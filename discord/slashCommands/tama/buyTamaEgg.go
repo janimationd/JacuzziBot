@@ -99,12 +99,12 @@ func HandleBuyTamaEggConfirmPurchase(session *discordgo.Session, interaction *di
 	var channelMessage string
 	var responseMessage string
 	if err == nil {
-		channelMessage += fmt.Sprintf(":egg: **<@%s> has purchased a Tama egg** with ID `%d`!\n\n",
+		channelMessage += fmt.Sprintf(":egg: **<@%s> has purchased a Tama egg** (ID #%d)!\n\n",
 			userId, tama.Id)
 
 		responseMessage += fmt.Sprintf("**Success!** You now have %s point%s.\n",
 			utils.FormatUIFloat(user.Points), utils.Plural(user.Points))
-		responseMessage += fmt.Sprintf("- Make sure to take care of it once a day using `/care-tama %d`.\n", tama.Id)
+		responseMessage += fmt.Sprintf("- Make sure to take care of it using `/care-tama %d`.\n", tama.Id)
 		responseMessage += fmt.Sprintf("- You can check on the status of your egg with `/check-tama %d`.", tama.Id)
 		// Add the user to the minigame role for later ease of @-ing them.
 		tamas.AddUserToMinigameRole(session, serverId, userId)

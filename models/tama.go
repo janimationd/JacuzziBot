@@ -33,7 +33,7 @@ const (
 	NegativeTraitMax
 )
 
-const moodLimit Mood = 10
+const TamaMoodLimit Mood = 10
 const relationshipScoreLimit RelationshipScore = 5
 
 // A Tama pet
@@ -51,6 +51,8 @@ type Tama struct {
 	Mood Mood
 	// How much this Tama likes other Tamas it has interacted with. Range [-5, 5].
 	Relationships map[JacuzziId]RelationshipScore
+	// The Tama this one is in love with. If it isn't in love with anyone right now, then this will be NoId.
+	LoveTarget JacuzziId
 	// The positive traits of the Tama after it has hatched.
 	PositiveTraits *utils.Set[PositiveTrait]
 	// The negative traits of the Tama after it has hatched.
@@ -67,11 +69,13 @@ type Tama struct {
 	EggCareCount uint8
 	// The last time the Tama/egg was cared for in seconds since Unix epoch.
 	LastCareTime int64
+	// The ID of the server where this Tama exists.
+	ServerId string
 }
 
 // Whether the Tama is alive or dead.
 func (this *Tama) IsAlive() bool {
-	return this.Mood > -moodLimit
+	return this.Mood > -TamaMoodLimit
 }
 
 // Whether this Tama is related to another Tama ID.
@@ -79,9 +83,11 @@ func (this *Tama) IsRelatedTo(otherId JacuzziId) bool {
 	return this.Parents.Contains(otherId) || this.Children.Contains(otherId)
 }
 
-// Modify the Tama's mood by a delta.
-func (this *Tama) ModifyMood(delta Mood) {
-	this.Mood = utils.Clamp(this.Mood+delta, -moodLimit, moodLimit)
+// Modify the Tama's mood by a delta. Returns true if the moof was modified, false if it was already at a limit.
+func (this *Tama) ModifyMood(delta Mood) bool {
+	beforeMood := this.Mood
+	this.Mood = utils.Clamp(this.Mood+delta, -TamaMoodLimit, TamaMoodLimit)
+	return beforeMood != this.Mood
 }
 
 // Modify the Tama's relation score towards another Tama by a delta.
@@ -105,13 +111,52 @@ func (this *Tama) HasHatched() bool {
 	return !this.IsEgg()
 }
 
-// Get the Name and Id of the Tama (if it haws a name) or just its Id.
+// Get the Name and Id of the Tama (if it has a name) or just its Id otherwise.
 func (this *Tama) GetNameAndId() string {
 	if this.Name != "" {
-		return fmt.Sprintf("%s (ID %d)", this.Name, this.Id)
+		return fmt.Sprintf("\"%s\" (#%d)", this.Name, this.Id)
 	} else {
 		return fmt.Sprint(this.Id)
 	}
+}
+
+// Return the next time the Tama is allowed to have `/care-tama` used on it at.
+func (this *Tama) GetNextCareTime() time.Time {
+	// Figure out the cooldown we need to use
+	var cooldown time.Duration
+	if this.IsEgg() {
+		cooldown = constants.EggCareCooldown
+	} else {
+		cooldown = constants.TamaCareCooldown
+	}
+
+	// If the cooldown hasn't yet expired
+	return time.Unix(this.LastCareTime, 0).Add(cooldown)
+}
+
+func randomlyChooseNOptions[T utils.Integer](n uint, max T) *utils.Set[T] {
+	values := make([]T, max)
+	for i := T(0); i < max; i++ {
+		values[i] = i
+	}
+
+	rand.Shuffle(len(values), func(i, j int) {
+		values[i], values[j] = values[j], values[i]
+	})
+
+	result := utils.NewSet[T]()
+	for i := uint(0); i < n; i++ {
+		result.Add(values[i])
+	}
+
+	return result
+}
+
+// Hatch!
+func (this *Tama) Hatch() {
+	this.HatchedTime = time.Now().Unix()
+	this.PositiveTraits = randomlyChooseNOptions(2, PositiveTraitMax)
+	this.NegativeTraits = randomlyChooseNOptions(1, NegativeTraitMax)
 }
 
 // Get a string describing the Tama's mood.
@@ -141,62 +186,20 @@ func (this *Tama) GetMoodString() string {
 	case 8, 9:
 		moodDesc = "ecstatic"
 	case 10:
-		moodDesc = "glowing"
+		moodDesc = "**glowing**"
 	}
 
 	if moodDesc == "" {
 		// Shouldn't get here
-		log.Printf("Tama %d had an invalid mood value %d.\n", this.Id, this.Mood)
-		if this.Mood < -moodLimit {
+		log.Printf("Tama #%d had an invalid mood value %d.\n", this.Id, this.Mood)
+		if this.Mood < -TamaMoodLimit {
 			moodDesc = "dead"
-		} else if this.Mood > moodLimit {
-			moodDesc = "glowing"
+		} else if this.Mood > TamaMoodLimit {
+			moodDesc = "**glowing**"
 		} else {
 			moodDesc = "confused"
 		}
 	}
 
-	return fmt.Sprintf("%s (mood %s%d)", moodDesc, utils.SignString(float64(this.Mood)), this.Mood)
-}
-
-// Get a string status message for this Tama.
-func (this *Tama) StatusMessage() string {
-	result := ""
-	if this.IsEgg() {
-		careCountBeforeHatching := constants.EggCareHatchThreshold - this.EggCareCount
-		result = fmt.Sprintf("Egg %d has been cared for %d times (needs %d more to hatch)",
-			this.Id, this.EggCareCount, careCountBeforeHatching)
-	} else {
-		result = fmt.Sprintf("Tama %s is %s", this.GetNameAndId(), this.GetMoodString())
-		if this.IsAlive() {
-			age := time.Since(time.Unix(this.HatchedTime, 0))
-			result += fmt.Sprintf(" and %s old", utils.FormatUIDuration(age))
-		}
-	}
-	return result
-}
-
-func randomlyChooseNOptions[T utils.Integer](n uint, max T) *utils.Set[T] {
-	values := make([]T, max)
-	for i := T(0); i < max; i++ {
-		values[i] = i
-	}
-
-	rand.Shuffle(len(values), func(i, j int) {
-		values[i], values[j] = values[j], values[i]
-	})
-
-	result := &utils.Set[T]{}
-	for i := uint(0); i < n; i++ {
-		result.Add(values[i])
-	}
-
-	return result
-}
-
-// Hatch!
-func (this *Tama) Hatch() {
-	this.HatchedTime = time.Now().Unix()
-	this.PositiveTraits = randomlyChooseNOptions(2, PositiveTraitMax)
-	this.NegativeTraits = randomlyChooseNOptions(1, NegativeTraitMax)
+	return fmt.Sprintf("%s (mood %s%d)", moodDesc, utils.SignString(this.Mood), this.Mood)
 }

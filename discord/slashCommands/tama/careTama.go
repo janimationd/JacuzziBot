@@ -10,6 +10,7 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
+	"github.com/janimationd/JacuzziBot/workflows/tamas"
 )
 
 // Care for a Tama/egg
@@ -64,10 +65,10 @@ var CareTama = models.SlashCommand{
 		}
 
 		// Attempt to care for this Tama
-		var hatched bool
+		var modified, hatched bool
 		var tama *models.Tama
 		if errorMessage == "" {
-			tama, hatched, err = db.CareForTama(serverId, id, userTimezone)
+			tama, modified, hatched, err = db.CareForTama(serverId, id, userTimezone)
 			if err != nil {
 				errorMessage = err.Error()
 			}
@@ -86,16 +87,21 @@ var CareTama = models.SlashCommand{
 			var message string
 			var flags discordgo.MessageFlags
 			if hatched {
-				message = fmt.Sprintf("Tama %d has hatched! :tada: Congrats to <@%s>!\n\n", id, userId)
-				message += fmt.Sprintf("You can now name it with `/name-tama %s` if you'd like.", id)
+				message = fmt.Sprintf("Tama #%d has hatched! :tada: Congrats to <@%s>!\n\n", id, userId)
+				message += fmt.Sprintf("You can now name it with `/name-tama %d` if you'd like.\n", id)
+				message += tamas.GetTamaStatus(tama, userTimezone, "#")
 			} else if tama.IsEgg() {
 				careCountBeforeHatching := constants.EggCareHatchThreshold - tama.EggCareCount
-				message = fmt.Sprintf("You have cared for egg %d. Only %d days left before it hatches!",
+				message = fmt.Sprintf("You have cared for egg #%d. Only %d days left before it hatches!",
 					id, careCountBeforeHatching)
 				flags = discordgo.MessageFlagsEphemeral
+			} else if modified {
+				message = fmt.Sprintf("You have played with Tama %s, improving its mood, and it's now %s!",
+					tama.GetNameAndId(), tama.GetMoodString())
+				flags = discordgo.MessageFlagsEphemeral
 			} else {
-				message = fmt.Sprintf("You have played with Tama %s and its mood is now %d!",
-					tama.GetNameAndId(), tama.Mood)
+				message = fmt.Sprintf("You have played with Tama %s, though its mood is already at maximum (+%d).",
+					tama.GetNameAndId(), models.TamaMoodLimit)
 				flags = discordgo.MessageFlagsEphemeral
 			}
 			// Respond with feedback message

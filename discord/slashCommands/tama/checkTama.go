@@ -3,6 +3,7 @@ package tama
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
+	"github.com/janimationd/JacuzziBot/workflows/tamas"
 )
 
 // Check the status of a Tama
@@ -47,7 +49,9 @@ var CheckTama = models.SlashCommand{
 		if err != nil {
 			errorMessage = "Couldn't load user details" + constants.ErrorReportMessageSuffix
 		} else {
-			if useSingleId && intId <= int64(models.NoId) {
+			if user.Timezone == "" {
+				errorMessage = "You must run `/set-timezone` before running this command."
+			} else if useSingleId && intId <= int64(models.NoId) {
 				errorMessage = fmt.Sprintf("Tama IDs must be greater than %d.", models.NoId)
 			} else if registeredChannelId == "" {
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
@@ -55,6 +59,15 @@ var CheckTama = models.SlashCommand{
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
 			} else if !useSingleId && user.Tamas.Size() == 0 {
 				errorMessage = "You don't own any Tamas."
+			}
+		}
+
+		// Load the user's timezone
+		var timezone *time.Location = nil
+		if errorMessage == "" {
+			timezone, err = time.LoadLocation(user.Timezone)
+			if err != nil {
+				errorMessage = fmt.Sprintf("User's timezone %s is invalid: %s", user.Timezone, err.Error())
 			}
 		}
 
@@ -66,17 +79,17 @@ var CheckTama = models.SlashCommand{
 				if err != nil {
 					errorMessage = err.Error()
 				} else {
-					message = tama.StatusMessage()
+					message = tamas.GetTamaStatus(tama, timezone, "#")
 				}
 			} else {
-				message = "Tamas you own:"
+				message = "# All Tamas you own:\n"
 				for id := range user.Tamas.All() {
 					tama, err := db.GetTama(serverId, id)
 					if err != nil {
 						// Swallow and log the error, continuing through the list of ones we can describe.
 						log.Printf("Failed to load tama %d's details: %s\n", id, err.Error())
 					} else if tama.IsAlive() { // Skip any dead Tamas
-						message += fmt.Sprintf("\n- %s", tama.StatusMessage())
+						message += tamas.GetTamaStatus(tama, timezone, "##")
 					}
 				}
 			}
