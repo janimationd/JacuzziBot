@@ -11,3 +11,6 @@ const VoiceCallPointsPerParticipantPerMinute float64 = 1
 
 // The cost of purchasing a Tama egg.
 const TamaEggPurchaseCost float64 = 100
+
+// How much it costs to feed a Tama
+const TamaFeedCost float64 = 5

@@ -75,7 +75,7 @@ func storeTama(db *bolt.DB, channelId string, tama *models.Tama) error {
 		}
 		tamaJson, err := json.Marshal(tama)
 		if err != nil {
-			return fmt.Errorf("Could not marshall Tama to JSON")
+			return fmt.Errorf("Could not marshall Tama to JSON: %w", err)
 		}
 		return bucket.Put(models.BytesFromJacuzziId(tama.Id), tamaJson)
 	})
@@ -143,7 +143,7 @@ func changeTamaOwner(
 		tama.Owner = newOwnerId
 		tamaBytes, err = json.Marshal(tama)
 		if err != nil {
-			return fmt.Errorf("Could not marshall Tama to JSON")
+			return fmt.Errorf("Could not marshall Tama to JSON: %w", err)
 		}
 		return bucket.Put(models.BytesFromJacuzziId(tama.Id), tamaBytes)
 	})
@@ -199,7 +199,7 @@ func nameTama(
 		tama.Name = newName
 		tamaBytes, err = json.Marshal(tama)
 		if err != nil {
-			return fmt.Errorf("Could not marshall Tama to JSON")
+			return fmt.Errorf("Could not marshall Tama to JSON: %w", err)
 		}
 		return bucket.Put(models.BytesFromJacuzziId(tama.Id), tamaBytes)
 	})
@@ -263,7 +263,7 @@ func careForTama(
 		// Save it back to the DB
 		tamaBytes, err = json.Marshal(tama)
 		if err != nil {
-			return fmt.Errorf("Could not marshall Tama to JSON")
+			return fmt.Errorf("Could not marshall Tama to JSON: %w", err)
 		}
 
 		err = bucket.Put(idBytes, tamaBytes)
@@ -279,6 +279,58 @@ func careForTama(
 	}
 
 	return tama, modified, hatched, nil
+}
+
+func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
+	tama := &models.Tama{}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaBucketName))
+		if err != nil {
+			return err
+		}
+
+		idBytes := models.BytesFromJacuzziId(tamaId)
+		tamaBytes := bucket.Get(idBytes)
+		if tamaBytes == nil {
+			return fmt.Errorf("Tama doesn't exist.")
+		}
+
+		err = json.Unmarshal(tamaBytes, tama)
+		if err != nil {
+			return fmt.Errorf("Could not unmarshall Tama JSON")
+		}
+
+		if !tama.IsAlive() {
+			return fmt.Errorf("Tama %s is dead, and can no longer be fed.", tama.GetNameAndId())
+		}
+
+		if tama.Hunger == 0 {
+			return fmt.Errorf("This Tama is already full. You don't need to feed it again until tomorrow (your local time).")
+		}
+
+		// Reduce its hunger
+		tama.Hunger -= 1
+
+		// Save it back to the DB
+		tamaBytes, err = json.Marshal(tama)
+		if err != nil {
+			return fmt.Errorf("Could not marshall Tama to JSON: %w", err)
+		}
+
+		err = bucket.Put(idBytes, tamaBytes)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return tama, nil
 }
 
 func getTamaMinigameRole(db *bolt.DB) string {
@@ -509,6 +561,18 @@ func CareForTama(
 	defer db.Close()
 
 	return careForTama(db, tamaId, userTimezone)
+}
+
+// Feed the Tama one food. Assumes you've already sold food to the Tama's owner successfully.
+func FeedTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return feedTama(db, tamaId)
 }
 
 func GetTamaMinigameRole(serverId string) string {

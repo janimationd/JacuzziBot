@@ -75,6 +75,7 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &tama.NameTama)
 	add(&commands, &tama.CheckTama)
 	add(&commands, &tama.CareTama)
+	add(&commands, &tama.FeedTama)
 
 	// Register the list of commands
 	for _, slashCommand := range commands {
