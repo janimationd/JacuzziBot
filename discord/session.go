@@ -55,7 +55,7 @@ func registerSlashCommands(session *discordgo.Session) {
 		commandDefs = append(commandDefs, slashCommand.Command)
 	}
 
-	// Single API call to sync all commands at once
+	// Single API call to sync all commands at once (idempotent in case they're already registered)
 	updatedCmds, err := session.ApplicationCommandBulkOverwrite(
 		session.State.User.ID,
 		session.State.Application.GuildID,
