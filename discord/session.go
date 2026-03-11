@@ -49,24 +49,31 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.Gamble)
 	add(&commands, &slashCommands.Award)
 
-	// Register the list of commands
+	// Build the list of command definitions to sync
+	var commandDefs []*discordgo.ApplicationCommand
 	for _, slashCommand := range commands {
-		cmd, err := session.ApplicationCommandCreate(
-			session.State.User.ID,
-			// Passing this makes them guild-level commands which are client-side refreshed much faster than global ones.
-			session.State.Application.GuildID,
-			slashCommand.Command,
-		)
-		if err != nil {
-			log.Println("Cannot register slash command:", err)
-			continue
-		}
-		slashCommand.Command = cmd
-		registeredCommands = append(registeredCommands, slashCommand)
-		log.Printf("Registered command with name \"%s\".\n", slashCommand.Command.Name)
+		commandDefs = append(commandDefs, slashCommand.Command)
 	}
 
-	log.Printf("Registered %d commands.\n", len(registeredCommands))
+	// Single API call to sync all commands at once (idempotent in case they're already registered)
+	updatedCmds, err := session.ApplicationCommandBulkOverwrite(
+		session.State.User.ID,
+		session.State.Application.GuildID,
+		commandDefs,
+	)
+
+	if err != nil {
+		log.Println("Failed to bulk overwrite slash commands:", err)
+	} else {
+		// Update local commands map with the IDs Discord assigned
+		for _, cmd := range updatedCmds {
+			if sc, ok := commands[cmd.Name]; ok {
+				sc.Command = cmd
+				registeredCommands = append(registeredCommands, sc)
+			}
+		}
+		log.Printf("Synced %d commands.\n", len(updatedCmds))
+	}
 
 	registerInteractionCreateHandlers(session)
 }
@@ -129,7 +136,8 @@ func Open() error {
 }
 
 func Close() {
-	deregisterSlashCommands(Session)
+	// We don't deregister on shutdown anymore, but keeping this code here in case we ever need to.
+	//deregisterSlashCommands(Session)
 
 	// Cleanly close Discord session
 	err := Session.Close()
