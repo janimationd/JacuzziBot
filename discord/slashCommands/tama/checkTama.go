@@ -57,7 +57,7 @@ var CheckTama = models.SlashCommand{
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
 			} else if !useSingleId {
-				tamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				tamas, err := db.GetAllTamas(serverId, userId, false, false)
 				if err != nil {
 					errorMessage = fmt.Sprintf("Couldn't fetch list of Tamas owned by you: %s", err.Error())
 				} else if len(tamas) == 0 {
@@ -87,7 +87,7 @@ var CheckTama = models.SlashCommand{
 				}
 			} else {
 				message = "# All Tamas you own:\n"
-				ownedTamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				ownedTamas, err := db.GetAllTamas(serverId, userId, false, false)
 				if err != nil {
 					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
 				} else {

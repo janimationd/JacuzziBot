@@ -73,9 +73,14 @@ type Tama struct {
 	ServerId string
 }
 
-// Whether the Tama is alive or dead.
+// Whether the Tama is alive.
 func (this *Tama) IsAlive() bool {
 	return this.Mood > -TamaMoodLimit
+}
+
+// Whether the Tama is dead.
+func (this *Tama) IsDead() bool {
+	return !this.IsAlive()
 }
 
 // Whether this Tama is related to another Tama ID.

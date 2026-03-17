@@ -238,7 +238,7 @@ func careForTama(
 			return fmt.Errorf("Could not unmarshall Tama JSON")
 		}
 
-		if !tama.IsAlive() {
+		if tama.IsDead() {
 			return fmt.Errorf("Tama %s is dead, and can no longer be cared for.", tama.GetNameAndId())
 		}
 
@@ -301,7 +301,7 @@ func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
 			return fmt.Errorf("Could not unmarshall Tama JSON")
 		}
 
-		if !tama.IsAlive() {
+		if tama.IsDead() {
 			return fmt.Errorf("Tama %s is dead, and can no longer be fed.", tama.GetNameAndId())
 		}
 
@@ -333,7 +333,7 @@ func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
 	return tama, nil
 }
 
-func getAllTamasOwnedByUser(db *bolt.DB, userId string) map[models.JacuzziId]*models.Tama {
+func getAllTamas(db *bolt.DB, userId string, aliveOnly bool, hatchedOnly bool) map[models.JacuzziId]*models.Tama {
 	tamas := make(map[models.JacuzziId]*models.Tama)
 
 	db.View(func(tx *bolt.Tx) error {
@@ -356,7 +356,11 @@ func getAllTamasOwnedByUser(db *bolt.DB, userId string) map[models.JacuzziId]*mo
 				return nil
 			}
 
-			if tama.Owner == userId {
+			// Check filters
+			satisfiesOwningUserFilter := userId == "" || tama.Owner == userId
+			satisfiesAliveFilter := !aliveOnly || tama.IsAlive()
+			satisfiesHatchedFilter := !hatchedOnly || tama.HasHatched()
+			if satisfiesOwningUserFilter && satisfiesAliveFilter && satisfiesHatchedFilter {
 				// Populate the map
 				tamas[tamaId] = tama
 			}
@@ -611,8 +615,11 @@ func FeedTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
 	return feedTama(db, tamaId)
 }
 
-// Get a set of all Tamas owned by the user.
-func GetAllTamasOwnedByUser(serverId string, userId string) (map[models.JacuzziId]*models.Tama, error) {
+// Get a set of all Tamas, optionally filtered by:
+// - userId: if not "", filter to those owned by the given user
+// - aliveOnly: if true, only return alive Tamas
+// - hatchedOnly: if true, only return hatched Tamas (not eggs)
+func GetAllTamas(serverId string, userId string, aliveOnly bool, hatchedOnly bool) (map[models.JacuzziId]*models.Tama, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
@@ -620,7 +627,7 @@ func GetAllTamasOwnedByUser(serverId string, userId string) (map[models.JacuzziI
 	}
 	defer db.Close()
 
-	return getAllTamasOwnedByUser(db, userId), nil
+	return getAllTamas(db, userId, aliveOnly, hatchedOnly), nil
 }
 
 func GetTamaMinigameRole(serverId string) string {

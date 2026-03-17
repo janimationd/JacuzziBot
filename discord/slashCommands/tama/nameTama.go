@@ -61,7 +61,7 @@ var NameTama = models.SlashCommand{
 				errorMessage = fmt.Sprintf("Tama names cannot exceed %d characters. Your name uses %d.",
 					constants.MaxTamaNameLength, utf8.RuneCountInString(newName))
 			} else {
-				ownedTamas, err := db.GetAllTamasOwnedByUser(serverId, userId)
+				ownedTamas, err := db.GetAllTamas(serverId, userId, false, false)
 				if err != nil {
 					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
 				} else if ownedTamas[id] == nil {
