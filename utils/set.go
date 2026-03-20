@@ -13,10 +13,15 @@ type Set[T comparable] struct {
 	data map[T]struct{}
 }
 
-// NewSet initializes a new thread-safe set.
+// Initializes a new thread-safe set.
 func NewSet[T comparable]() *Set[T] {
+	return NewSetN[T](0)
+}
+
+// Initializes a new thread-safe set with initial capacity.
+func NewSetN[T comparable](capacity int) *Set[T] {
 	return &Set[T]{
-		data: make(map[T]struct{}),
+		data: make(map[T]struct{}, capacity),
 	}
 }
 

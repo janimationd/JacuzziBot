@@ -10,11 +10,13 @@ import (
 	"github.com/janimationd/JacuzziBot/utils"
 )
 
-type PositiveTrait uint16
-type NegativeTrait uint16
-type Hunger = uint8
-type Mood = int8
-type RelationshipScore = int8
+type PositiveTrait uint
+type NegativeTrait uint
+type TamaInteraction uint
+type GiftOutcome uint
+type Hunger uint
+type Mood int
+type RelationshipScore int
 
 const (
 	Friendly PositiveTrait = iota
@@ -31,6 +33,22 @@ const (
 	Annoying
 	// New ones should go above this
 	NegativeTraitMax
+)
+
+const (
+	Play TamaInteraction = iota
+	Gift
+	PickOn
+	// New ones should go above this
+	TamaInteractionMax
+)
+
+const (
+	Likes GiftOutcome = iota
+	Indifferent
+	Hates
+	// New ones should go above this
+	GiftOutcomeMax
 )
 
 const TamaMoodLimit Mood = 10
@@ -95,10 +113,36 @@ func (this *Tama) ModifyMood(delta Mood) bool {
 	return beforeMood != this.Mood
 }
 
-// Modify the Tama's relation score towards another Tama by a delta.
-func (this *Tama) ModifyRelationshipScoreWith(otherId JacuzziId, delta RelationshipScore) {
-	this.Relationships[otherId] =
-		utils.Clamp(this.Relationships[otherId]+delta, -relationshipScoreLimit, relationshipScoreLimit)
+// Modify the Tama's relation score towards another Tama by a delta. Returns:
+// - first, the amount the relationship score actually changed by (might be different than expected if it got clamped)
+// - second, the amount the Tama's mood might have been affected by in the same direction
+// - third, any relationship score bonus that was added from the Friendly trait triggerring
+func (this *Tama) ModifyRelationshipScoreWith(
+	other *Tama,
+	delta RelationshipScore,
+) (RelationshipScore, Mood, RelationshipScore) {
+	oldRelationshipScore := this.Relationships[other.Id]
+
+	// Handle the effect of the Friendly trait (33% chance)
+	friendly := delta > 0 && other.PositiveTraits.Contains(Friendly) && 0 == rand.IntN(3)
+	friendlyBonus := 0
+	if friendly {
+		friendlyBonus = 1
+		delta += RelationshipScore(friendlyBonus)
+	}
+
+	this.Relationships[other.Id] =
+		utils.Clamp(this.Relationships[other.Id]+delta, -relationshipScoreLimit, relationshipScoreLimit)
+
+	// Anytime a relationship score changes, there's a 33% chance the Tama's mood changes by 1 in the same direction.
+	moodDelta := 0
+	if 0 == rand.IntN(3) {
+		moodDelta = utils.Sign(delta)
+		this.ModifyMood(Mood(moodDelta))
+	}
+
+	relationshipScoreChange := this.Relationships[other.Id] - oldRelationshipScore
+	return relationshipScoreChange, Mood(moodDelta), RelationshipScore(friendlyBonus)
 }
 
 // Whether the egg is claimed/owned or not.
@@ -139,29 +183,11 @@ func (this *Tama) GetNextCareTime() time.Time {
 	return time.Unix(this.LastCareTime, 0).Add(cooldown)
 }
 
-func randomlyChooseNOptions[T utils.Integer](n uint, max T) *utils.Set[T] {
-	values := make([]T, max)
-	for i := T(0); i < max; i++ {
-		values[i] = i
-	}
-
-	rand.Shuffle(len(values), func(i, j int) {
-		values[i], values[j] = values[j], values[i]
-	})
-
-	result := utils.NewSet[T]()
-	for i := uint(0); i < n; i++ {
-		result.Add(values[i])
-	}
-
-	return result
-}
-
 // Hatch!
 func (this *Tama) Hatch() {
 	this.HatchedTime = time.Now().Unix()
-	this.PositiveTraits = randomlyChooseNOptions(2, PositiveTraitMax)
-	this.NegativeTraits = randomlyChooseNOptions(1, NegativeTraitMax)
+	this.PositiveTraits = utils.ChooseRandomNIntegers(2, PositiveTraitMax)
+	this.NegativeTraits = utils.ChooseRandomNIntegers(1, NegativeTraitMax)
 }
 
 // Get a string describing the Tama's mood.

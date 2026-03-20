@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"time"
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/utils"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -506,6 +508,229 @@ func deleteTamaTransfer(db *bolt.DB, tamaId models.JacuzziId) error {
 	})
 }
 
+// Choose a random interaction with a very specific probabilty distribution. The second return value will be true if
+// instigator is a Bully, and that fact caused it to bully the target.
+func chooseRandomInteraction(instigator *models.Tama, target *models.Tama) (models.TamaInteraction, bool) {
+	weights := make([]int, models.TamaInteractionMax)
+	weights[models.Play] = 5
+	weights[models.Gift] = 2
+	weights[models.PickOn] = 1
+
+	// Bullies have an increased chance to pick on other pets.
+	isABully := instigator.NegativeTraits.Contains(models.Bully)
+	if isABully {
+		weights[models.PickOn] = 2
+	}
+
+	totalWeight := 0
+	for i := range models.TamaInteractionMax {
+		totalWeight += weights[i]
+	}
+
+	roll := rand.IntN(totalWeight)
+	for i := range models.TamaInteractionMax {
+		if roll < weights[i] {
+			// If this is a PickOn from a Bully which wouldn't have happened otherwise.
+			if i == models.PickOn && isABully && roll == 1 {
+				return i, true
+			}
+			return i, false
+		}
+		roll -= weights[i]
+	}
+
+	panic(fmt.Sprintf("Shouldn't have gotten here! Remaining roll: %d", roll))
+}
+
+func chooseRandomGiftOutcome() models.GiftOutcome {
+	weights := make([]int, models.GiftOutcomeMax)
+	weights[models.Likes] = 4
+	weights[models.Indifferent] = 2
+	weights[models.Hates] = 1
+
+	totalWeight := 0
+	for i := range models.GiftOutcomeMax {
+		totalWeight += weights[i]
+	}
+
+	roll := rand.IntN(totalWeight)
+	for i := range models.GiftOutcomeMax {
+		if roll < weights[i] {
+			return i
+		}
+		roll -= weights[i]
+	}
+
+	panic(fmt.Sprintf("Shouldn't have gotten here! Remaining roll: %d", roll))
+}
+
+func tamaInteract(
+	db *bolt.DB,
+	instigatorId models.JacuzziId,
+	targetId models.JacuzziId,
+	indent string,
+) (string, error) {
+	summary := fmt.Sprintf("%s- ", indent)
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		// Fetch current state of both Tamas
+		bucket := tx.Bucket([]byte(tamaBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Tama bucket doesn't exist!")
+		}
+
+		instigatorBytes := bucket.Get(models.BytesFromJacuzziId(instigatorId))
+		if instigatorBytes == nil {
+			return fmt.Errorf("Instigator Tama %d doesn't exist!", instigatorId)
+		}
+
+		targetBytes := bucket.Get(models.BytesFromJacuzziId(instigatorId))
+		if targetBytes == nil {
+			return fmt.Errorf("Target Tama %d doesn't exist!", targetId)
+		}
+
+		instigator := models.Tama{}
+		target := models.Tama{}
+
+		err := json.Unmarshal(instigatorBytes, &instigator)
+		if err != nil {
+			return err
+		}
+
+		err = json.Unmarshal(targetBytes, &target)
+		if err != nil {
+			return err
+		}
+
+		// Choose a random interaction
+		interaction, bullyTraitCausedPickOn := chooseRandomInteraction(&instigator, &target)
+
+		instigatorRelationshipChange := models.RelationshipScore(0)
+		instigatorMoodDelta := models.Mood(0)
+		instigatorFriendlyBonus := models.RelationshipScore(0)
+		targetRelationshipChange := models.RelationshipScore(0)
+		targetMoodDelta := models.Mood(0)
+		targetFriendlyBonus := models.RelationshipScore(0)
+
+		// Execute the interaction
+		switch interaction {
+		case models.Play:
+			// A -> B += 1, B -> A += 1
+			instigatorRelationshipChange, instigatorMoodDelta, instigatorFriendlyBonus =
+				instigator.ModifyRelationshipScoreWith(&target, 1)
+			targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
+				target.ModifyRelationshipScoreWith(&instigator, 1)
+			summary += fmt.Sprintf("%s played with %s, and they had fun!",
+				instigator.GetNameAndId(), target.GetNameAndId())
+		case models.Gift:
+			summary += fmt.Sprintf("%s gave %s a gift, and %s ",
+				instigator.GetNameAndId(), target.GetNameAndId(), target.GetNameAndId())
+			// Choose the outcome of the gift giving
+			giftOutcome := chooseRandomGiftOutcome()
+			switch giftOutcome {
+			case models.Likes:
+				// B -> A += 2
+				targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
+					target.ModifyRelationshipScoreWith(&instigator, 2)
+				summary += "liked it!"
+			case models.Indifferent:
+				// A -> B -= 1
+				instigatorRelationshipChange, instigatorMoodDelta, instigatorFriendlyBonus =
+					instigator.ModifyRelationshipScoreWith(&target, -1)
+				summary += "didn't care for it!"
+			case models.Hates:
+				// A -> B -= 2, B -> A -= 1
+				instigatorRelationshipChange, instigatorMoodDelta, instigatorFriendlyBonus =
+					instigator.ModifyRelationshipScoreWith(&target, -2)
+				targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
+					target.ModifyRelationshipScoreWith(&instigator, -1)
+				summary += "hated it!"
+			default:
+				panic(fmt.Sprintf("Unknown GiftOutcome %d!", giftOutcome))
+			}
+		case models.PickOn:
+			// B -> A -= 2
+			targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
+				target.ModifyRelationshipScoreWith(&instigator, -2)
+			summary += fmt.Sprintf("%s picked on %s, what a dick!",
+				instigator.GetNameAndId(), target.GetNameAndId())
+		default:
+			panic(fmt.Sprintf("Unknown TamaInteraction %d!", interaction))
+		}
+
+		// Document any special reasons for the interaction
+		if bullyTraitCausedPickOn {
+			summary += fmt.Sprintf("\n%s  - This only happened because %s has the Bully trait (doubled option weight).",
+				indent, instigator.GetNameAndId())
+		}
+
+		// Write any changes back to DB
+		instigatorBytes, err = json.Marshal(instigator)
+		if err != nil {
+			return err
+		}
+		targetBytes, err = json.Marshal(target)
+		if err != nil {
+			return err
+		}
+
+		err = bucket.Put(models.BytesFromJacuzziId(instigatorId), instigatorBytes)
+		if err == nil {
+			// Document primary and secondary effects
+			if instigatorRelationshipChange != 0 {
+				summary += fmt.Sprintf("\n%s  - %s's relationship score towards %s changed by %s%d.",
+					indent, instigator.GetNameAndId(), target.GetNameAndId(),
+					utils.SignString(instigatorRelationshipChange), instigatorRelationshipChange)
+			}
+			if instigatorFriendlyBonus != 0 {
+				summary += fmt.Sprintf(" This included a %s%d bonus because %s has the Friendly trait (33%% chance).",
+					utils.SignString(instigatorFriendlyBonus), instigatorFriendlyBonus,
+					target.GetNameAndId())
+			}
+			if instigatorMoodDelta != 0 {
+				summary += fmt.Sprintf("\n%s    - because of this %s's mood also changed by %s%d (33%% chance).",
+					indent, instigator.GetNameAndId(),
+					utils.SignString(instigatorMoodDelta), instigatorMoodDelta)
+			}
+		} else {
+			log.Printf("Couldn't write instigator Tama back to DB: %s\n", err.Error())
+			summary += fmt.Sprintf("\n%s  - Error updating %s in the database"+constants.ErrorReportMessageSuffix,
+				instigator.GetNameAndId())
+		}
+		err = bucket.Put(models.BytesFromJacuzziId(targetId), targetBytes)
+		if err == nil {
+			// Document primary and secondary effects
+			if targetRelationshipChange != 0 {
+				summary += fmt.Sprintf("\n%s  - %s's relationship score towards %s changed by %s%d.",
+					indent, target.GetNameAndId(), instigator.GetNameAndId(),
+					utils.SignString(targetRelationshipChange), targetRelationshipChange)
+			}
+			if targetFriendlyBonus != 0 {
+				summary += fmt.Sprintf(" This included a %s%d bonus because %s has the Friendly trait (33%% chance).",
+					utils.SignString(targetFriendlyBonus), targetFriendlyBonus,
+					instigator.GetNameAndId())
+			}
+			if targetMoodDelta != 0 {
+				summary += fmt.Sprintf("\n%s    - because of this %s's mood also changed by %s%d (33%% chance).",
+					indent, target.GetNameAndId(),
+					utils.SignString(targetMoodDelta), targetMoodDelta)
+			}
+		} else {
+			log.Printf("Couldn't write target Tama back to DB: %s\n", err.Error())
+			summary += fmt.Sprintf("\n%s  - Error updating %s in the database"+constants.ErrorReportMessageSuffix,
+				target.GetNameAndId())
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return summary, nil
+}
+
 func RegisterTamaChannel(serverId string, channelId string) error {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -688,4 +913,21 @@ func DeleteTamaTransfer(serverId string, tamaId models.JacuzziId) error {
 	defer db.Close()
 
 	return deleteTamaTransfer(db, tamaId)
+}
+
+// One Tama interacts with another, randomly choosing an interaction type. Returns a string describing the interaction.
+func TamaInteract(
+	serverId string,
+	instigatorId models.JacuzziId,
+	targetId models.JacuzziId,
+	indent string,
+) (string, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+
+	return tamaInteract(db, instigatorId, targetId, indent)
 }
