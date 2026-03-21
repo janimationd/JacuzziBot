@@ -72,13 +72,13 @@ func getPositiveTraitsString(this *models.Tama) string {
 		result += "  - "
 		switch trait {
 		case models.Friendly:
-			result += "Friendly: whenever another Tama's relationship with this Tama improves, " +
-				"there's a 33% chance it increases by one extra point.\n"
+			result += "Friendly: whenever another Tama's attitude toward this Tama improves, " +
+				"there's a 33% chance it improves by one extra point.\n"
 		case models.SocialButterfly:
 			result += "Social Butterfly: 33% chance to execute two social interactions whenever one would normally occur.\n"
 		case models.Sympathetic:
 			result += "Sympathetic: 33% chance to console one Tama who is picked on (per play session), " +
-				"mutually increasing relationship score with that pet by 1.\n"
+				"mutually increasing attitudes toward each other by 1.\n"
 		case models.Fertile:
 			result += "Fertile: increased chance to mate with the target of love.\n"
 		}
@@ -95,11 +95,11 @@ func getNegativeTraitsString(this *models.Tama) string {
 		case models.Bully:
 			result += "Bully: increased chance to pick on other Tamas.\n"
 		case models.Jealous:
-			result += "Jealous: whenever a pet that this Tama is courting or in love with's relationship score " +
-				"towards another Tama increases, 33% chance to lose 2 relationship score towards both the other Tamas.\n"
+			result += "Jealous: whenever a pet that this Tama is courting or in love with's attitude " +
+				"towards another Tama improves, 33% chance for attitude towards both the other Tamas to worsen by 1.\n"
 		case models.Annoying:
-			result += "Annoying: 33% chance that playing with another Tama won't actually increase its relationship " +
-				"score towards us.\n"
+			result += "Annoying: 33% chance that playing with another Tama won't actually improve its attitude " +
+				"towards us.\n"
 		}
 	}
 	return result

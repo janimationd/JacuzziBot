@@ -99,13 +99,13 @@ var ScheduleTamaPlaytime = models.SlashCommand{
 			// Overwrite any existing event at this time (true)
 			_, err = db.ScheduleEvent(&event, true)
 			if err != nil {
-				errorMessage = fmt.Sprintf("Failed to schedule event %s: %s", eventId, err.Error())
+				errorMessage = fmt.Sprintf("Failed to register event %s: %s", eventId, err.Error())
 			}
 		}
 
 		var message string
 		if errorMessage == "" {
-			message = fmt.Sprintf("Playtime event scheduled with ID: %s", eventId)
+			message = fmt.Sprintf("Tama Playtime event scheduled with ID: `%s`", eventId)
 		} else {
 			message = errorMessage
 		}

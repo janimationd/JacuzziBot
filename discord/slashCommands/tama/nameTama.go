@@ -91,6 +91,12 @@ var NameTama = models.SlashCommand{
 			errorMessage = "You cannot name Tamas before they hatch."
 		}
 
+		// Change the final message if the Tama already had a name.
+		renamed := ""
+		if errorMessage == "" && tama.Name != "" {
+			renamed = "re"
+		}
+
 		// Rename the Tama
 		if errorMessage == "" {
 			tama, err = db.NameTama(serverId, id, newName)
@@ -109,7 +115,7 @@ var NameTama = models.SlashCommand{
 				},
 			})
 		} else {
-			message := fmt.Sprintf("<@%s> has just named Tama #%d \"%s\"!", userId, id, newName)
+			message := fmt.Sprintf("<@%s> has just %snamed Tama #%d \"%s\"!", userId, renamed, id, newName)
 			// Respond with feedback message
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,

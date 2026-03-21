@@ -584,7 +584,7 @@ func tamaInteract(
 			return fmt.Errorf("Instigator Tama %d doesn't exist!", instigatorId)
 		}
 
-		targetBytes := bucket.Get(models.BytesFromJacuzziId(instigatorId))
+		targetBytes := bucket.Get(models.BytesFromJacuzziId(targetId))
 		if targetBytes == nil {
 			return fmt.Errorf("Target Tama %d doesn't exist!", targetId)
 		}
@@ -620,10 +620,10 @@ func tamaInteract(
 				instigator.ModifyRelationshipScoreWith(&target, 1)
 			targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
 				target.ModifyRelationshipScoreWith(&instigator, 1)
-			summary += fmt.Sprintf("%s played with %s, and they had fun!",
+			summary += fmt.Sprintf("**%s played with %s**, and they had fun!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		case models.Gift:
-			summary += fmt.Sprintf("%s gave %s a gift, and %s ",
+			summary += fmt.Sprintf("**%s gave %s a gift**, and %s ",
 				instigator.GetNameAndId(), target.GetNameAndId(), target.GetNameAndId())
 			// Choose the outcome of the gift giving
 			giftOutcome := chooseRandomGiftOutcome()
@@ -652,7 +652,7 @@ func tamaInteract(
 			// B -> A -= 2
 			targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
 				target.ModifyRelationshipScoreWith(&instigator, -2)
-			summary += fmt.Sprintf("%s picked on %s, what a dick!",
+			summary += fmt.Sprintf("**%s picked on %s**, what a dick!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		default:
 			panic(fmt.Sprintf("Unknown TamaInteraction %d!", interaction))
@@ -678,7 +678,7 @@ func tamaInteract(
 		if err == nil {
 			// Document primary and secondary effects
 			if instigatorRelationshipChange != 0 {
-				summary += fmt.Sprintf("\n%s  - %s's relationship score towards %s changed by %s%d.",
+				summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
 					indent, instigator.GetNameAndId(), target.GetNameAndId(),
 					utils.SignString(instigatorRelationshipChange), instigatorRelationshipChange)
 			}
@@ -688,20 +688,20 @@ func tamaInteract(
 					target.GetNameAndId())
 			}
 			if instigatorMoodDelta != 0 {
-				summary += fmt.Sprintf("\n%s    - because of this %s's mood also changed by %s%d (33%% chance).",
+				summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
 					indent, instigator.GetNameAndId(),
 					utils.SignString(instigatorMoodDelta), instigatorMoodDelta)
 			}
 		} else {
 			log.Printf("Couldn't write instigator Tama back to DB: %s\n", err.Error())
-			summary += fmt.Sprintf("\n%s  - Error updating %s in the database"+constants.ErrorReportMessageSuffix,
-				instigator.GetNameAndId())
+			summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,
+				indent, instigator.GetNameAndId())
 		}
 		err = bucket.Put(models.BytesFromJacuzziId(targetId), targetBytes)
 		if err == nil {
 			// Document primary and secondary effects
 			if targetRelationshipChange != 0 {
-				summary += fmt.Sprintf("\n%s  - %s's relationship score towards %s changed by %s%d.",
+				summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
 					indent, target.GetNameAndId(), instigator.GetNameAndId(),
 					utils.SignString(targetRelationshipChange), targetRelationshipChange)
 			}
@@ -711,14 +711,14 @@ func tamaInteract(
 					instigator.GetNameAndId())
 			}
 			if targetMoodDelta != 0 {
-				summary += fmt.Sprintf("\n%s    - because of this %s's mood also changed by %s%d (33%% chance).",
+				summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
 					indent, target.GetNameAndId(),
 					utils.SignString(targetMoodDelta), targetMoodDelta)
 			}
 		} else {
 			log.Printf("Couldn't write target Tama back to DB: %s\n", err.Error())
-			summary += fmt.Sprintf("\n%s  - Error updating %s in the database"+constants.ErrorReportMessageSuffix,
-				target.GetNameAndId())
+			summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,
+				indent, target.GetNameAndId())
 		}
 
 		return nil

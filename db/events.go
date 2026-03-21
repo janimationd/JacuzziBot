@@ -77,6 +77,7 @@ func forEachScheduledEvent(db *bbolt.DB, op ScheduledEventOperation) error {
 
 func scheduleEvent(db *bbolt.DB, event *models.ScheduledEvent, overwriteIfPresent bool) (bool, error) {
 	modified := false
+	event.Init()
 
 	err := db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(scheduleBucketName))

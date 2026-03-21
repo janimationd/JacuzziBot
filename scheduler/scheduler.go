@@ -13,6 +13,13 @@ import (
 // The registered event handlers.
 var eventRegistry = map[string]models.EventHandler{}
 
+// Register an event handler.
+func RegisterHandler(handlerName string, handler models.EventHandler, overwriteIfPresent bool) {
+	if overwriteIfPresent || eventRegistry[handlerName] == nil {
+		eventRegistry[handlerName] = handler
+	}
+}
+
 // This ensures both that the event is in the database already (indexed by event.ID) and that the handler is
 // registered (indexed by event.Handler). Caller chooses whether to overwrite if values for those keys already exist.
 func RegisterEventAndHandler(
@@ -20,21 +27,18 @@ func RegisterEventAndHandler(
 	handler models.EventHandler,
 	overwriteIfPresent bool,
 ) error {
-	event.Init()
 	// Add to the database.
 	_, err := db.ScheduleEvent(event, overwriteIfPresent)
 	if err != nil {
 		return err
 	}
-	if overwriteIfPresent || eventRegistry[event.Handler] == nil {
-		eventRegistry[event.Handler] = handler
-	}
+	RegisterHandler(event.Handler, handler, overwriteIfPresent)
 	return nil
 }
 
 // Puts all crucial events on the schedule at startup. "Crucial" here just means "we know we need it at startup".
-func setupCrucialEvents() {
-	// Create and append all scheduled events here. Examples (though they should each be defined in their own files):
+func setupCrucialEventsAndHandlers() {
+	// Schedule all crucial events here. Examples (though they should each be defined in their own files):
 	//
 	// schedule = append(schedule, &ScheduledEvent{
 	// 	   ID:                  "RecurringEvent",
@@ -48,15 +52,17 @@ func setupCrucialEvents() {
 	// 	   NextTime: time.Now().Add(30 * time.Second),
 	//     ...
 	// })
-
 	RegisterEventAndHandler(&events.VoiceCallPointAwarder, events.VoiceCallPointAwarderHandler, false)
+
+	// Register all handlers for events that could be stored in the database already or could be scheduled later.
+	RegisterHandler("TamaPlaytimeHandler", events.TamaPlaytimeHandler, true)
 }
 
 const checkInterval = 1 * time.Second
 
 // Setup and run the schedule.
 func Run(ctx context.Context) {
-	setupCrucialEvents()
+	setupCrucialEventsAndHandlers()
 
 	for {
 		loopStartTime := time.Now()

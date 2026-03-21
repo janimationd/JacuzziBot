@@ -14,7 +14,7 @@ const MaxTamaNameLength = 30
 const EggCareHatchThreshold uint8 = 3
 
 // The cooldown period for caring for an egg
-const EggCareCooldown = 24 * time.Hour
+const EggCareCooldown = 1 * time.Second
 
 // The cooldown period for caring for a hatched Tama
-const TamaCareCooldown = 8 * time.Hour
+const TamaCareCooldown = 1 * time.Second

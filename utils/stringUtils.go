@@ -68,14 +68,11 @@ func FormatUIDuration(duration time.Duration) string {
 	}
 }
 
-// Get the sign string of the numeric values ("-" for negatives, "" for zero, and "+" for positives).
+// Get the sign string of the numeric value ("" for negatives or zero, and "+" for positives).
 func SignString[T Number](val T) string {
-	switch {
-	case val < 0:
-		return "-"
-	case val > 0:
+	if val > 0 {
 		return "+"
-	default:
-		return ""
 	}
+	// Don't return anything for negatives because they'll be written out with their negative sign already.
+	return ""
 }

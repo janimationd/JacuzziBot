@@ -121,6 +121,9 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	other *Tama,
 	delta RelationshipScore,
 ) (RelationshipScore, Mood, RelationshipScore) {
+	if this.Relationships == nil {
+		this.Relationships = make(map[JacuzziId]RelationshipScore)
+	}
 	oldRelationshipScore := this.Relationships[other.Id]
 
 	// Handle the effect of the Friendly trait (33% chance)
@@ -165,7 +168,7 @@ func (this *Tama) GetNameAndId() string {
 	if this.Name != "" {
 		return fmt.Sprintf("\"%s\" (#%d)", this.Name, this.Id)
 	} else {
-		return fmt.Sprint(this.Id)
+		return fmt.Sprintf("#%d", this.Id)
 	}
 }
 
