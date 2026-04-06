@@ -12,7 +12,7 @@ import (
 	"github.com/janimationd/JacuzziBot/utils"
 )
 
-var perms = int64(discordgo.PermissionManageGuild)
+var manageGuildPerms = int64(discordgo.PermissionManageGuild)
 
 func nextUTCTime(t time.Time, hour int, minute int) time.Time {
 	candidate := time.Date(t.Year(), t.Month(), t.Day(), hour, minute, 0, 0, time.UTC)
@@ -41,7 +41,7 @@ var ScheduleTamaPlaytime = models.SlashCommand{
 				Required:    true,
 			},
 		},
-		DefaultMemberPermissions: &perms,
+		DefaultMemberPermissions: &manageGuildPerms,
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		// Extract options/parameters

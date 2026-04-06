@@ -3,6 +3,8 @@ package db
 import (
 	"encoding/json"
 	"log"
+	"regexp"
+	"sort"
 
 	"github.com/janimationd/JacuzziBot/models"
 	"go.etcd.io/bbolt"
@@ -111,6 +113,48 @@ func scheduleEvent(db *bbolt.DB, event *models.ScheduledEvent, overwriteIfPresen
 	return modified, err
 }
 
+func getAllEvents(db *bbolt.DB, idFilterRegex string) ([]*models.ScheduledEvent, error) {
+	result := make([]*models.ScheduledEvent, 0)
+
+	err := db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(scheduleBucketName))
+		if bucket == nil {
+			return nil
+		}
+
+		bucket.ForEach(func(k, v []byte) error {
+			matched, err := regexp.Match(idFilterRegex, k)
+			if err != nil {
+				log.Printf("Couldn't match regex %s to event ID %s: %s\n", idFilterRegex, k, err.Error())
+				return nil
+			}
+			if matched {
+				event := new(models.ScheduledEvent)
+				err := json.Unmarshal(v, event)
+				if err != nil {
+					log.Printf("Couldn't unmarshall event to JSON: %s\n", err.Error())
+					return nil
+				}
+				result = append(result, event)
+			}
+			return nil
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort by ID
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].ID < result[j].ID
+	})
+
+	return result, nil
+}
+
 // Perform an operation on each event in the schedule. Your op returns what we should do with the event after
 // the function completes. If op returns an error, the entire loop exits early and the error is returned.
 func ForEachScheduledEvent(op ScheduledEventOperation) error {
@@ -134,4 +178,17 @@ func ScheduleEvent(event *models.ScheduledEvent, overwriteIfPresent bool) (bool,
 	defer db.Close()
 
 	return scheduleEvent(db, event, overwriteIfPresent)
+}
+
+// Get all events in the DB, with an optional ID filter.
+// The slice will be sorted by event ID (so by event time).
+func GetAllEvents(idFilterRegex string) ([]*models.ScheduledEvent, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(scheduleDatabaseName)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return getAllEvents(db, idFilterRegex)
 }
