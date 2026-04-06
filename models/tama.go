@@ -52,7 +52,7 @@ const (
 )
 
 const TamaMoodLimit Mood = 10
-const relationshipScoreLimit RelationshipScore = 5
+const TamaRelationshipScoreLimit RelationshipScore = 5
 
 // A Tama pet
 type Tama struct {
@@ -135,7 +135,7 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	}
 
 	this.Relationships[other.Id] =
-		utils.Clamp(this.Relationships[other.Id]+delta, -relationshipScoreLimit, relationshipScoreLimit)
+		utils.Clamp(this.Relationships[other.Id]+delta, -TamaRelationshipScoreLimit, TamaRelationshipScoreLimit)
 
 	// Anytime a relationship score changes, there's a 33% chance the Tama's mood changes by 1 in the same direction.
 	moodDelta := 0

@@ -83,7 +83,7 @@ var ScheduleTamaPlaytime = models.SlashCommand{
 		if errorMessage == "" {
 			// Events are non-server-specific, so to uniquely identify them we need to include the server ID.
 			// We also use the hour and minute so that two events cannot be accidentally put onto the same time.
-			eventId = fmt.Sprintf("TamaPlaytime-%s-%d:%d", serverId, hour, minute)
+			eventId = fmt.Sprintf("TamaPlaytime-%s-%02d:%02d", serverId, hour, minute)
 			nextTime := nextUTCTime(time.Now(), int(hour), int(minute))
 
 			event := models.ScheduledEvent{

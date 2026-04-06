@@ -18,7 +18,7 @@ var perms = int64(discordgo.PermissionManageGuild)
 var Award = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name:        "award",
-		Description: "Award a user some points",
+		Description: "Award a user some points.",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,

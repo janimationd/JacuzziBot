@@ -14,9 +14,8 @@ var perm = int64(discordgo.PermissionManageGuild)
 
 var RegisterTamaChannel = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
-		Name: "register-tama-channel",
-		Description: "Registers the current channel as a Tama minigame. " +
-			"Can only be run by someone with 'Manage Server' permissions.",
+		Name:                     "register-tama-channel",
+		Description:              "Registers the current channel as a Tama minigame.",
 		DefaultMemberPermissions: &perm,
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
