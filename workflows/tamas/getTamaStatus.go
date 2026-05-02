@@ -80,7 +80,7 @@ func getPositiveTraitsString(this *models.Tama) string {
 			result += "Sympathetic: 33% chance to console one Tama who is picked on (per play session), " +
 				"mutually increasing attitudes toward each other by 1.\n"
 		case models.Fertile:
-			result += "Fertile: increased chance to mate with the target of love.\n"
+			result += "Fertile: increased chance to mate with the target of love (future feature).\n"
 		}
 	}
 	return result

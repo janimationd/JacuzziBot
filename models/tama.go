@@ -113,14 +113,39 @@ func (this *Tama) ModifyMood(delta Mood) bool {
 	return beforeMood != this.Mood
 }
 
-// Modify the Tama's relation score towards another Tama by a delta. Returns:
-// - first, the amount the relationship score actually changed by (might be different than expected if it got clamped)
-// - second, the amount the Tama's mood might have been affected by in the same direction
-// - third, any relationship score bonus that was added from the Friendly trait triggerring
+// The result of a relationship score change w.r.t. love states.
+type LoveResult int
+
+const (
+	// Nothing happened w.r.t. the pets' love state.
+	NoChange = iota
+	// The pets fell in love!
+	FellInLove
+	// The pets are in love, and this prevented them from losing relationship score.
+	LovePreventedDecrease
+	// The pets fell out of love!
+	FellOutOfLove
+)
+
+// The result of calling Tama.ModifyRelationshipScoreWith().
+type RelationshipScoreModificationResult struct {
+	// The amount the relationship score actually changed by (might be different than expected if it got clamped).
+	FinalDelta RelationshipScore
+	// The amount the Tama's mood might have been affected by in the same direction.
+	MoodDelta Mood
+	// Any relationship score bonus that was added from the Friendly trait triggerring.
+	FriendlyBonus RelationshipScore
+	// Any special results related to love state.
+	LoveEvent LoveResult
+}
+
+// Modify the Tama's relationship score towards another Tama by a delta.
 func (this *Tama) ModifyRelationshipScoreWith(
 	other *Tama,
 	delta RelationshipScore,
-) (RelationshipScore, Mood, RelationshipScore) {
+) RelationshipScoreModificationResult {
+	var LoveEvent LoveResult = NoChange
+
 	if this.Relationships == nil {
 		this.Relationships = make(map[JacuzziId]RelationshipScore)
 	}
@@ -134,8 +159,21 @@ func (this *Tama) ModifyRelationshipScoreWith(
 		delta += RelationshipScore(friendlyBonus)
 	}
 
+	// If the tamas are in love, there's a 66% chance that a decrease in relationship score doesn't happen.
+	if this.Loves(other) && delta < 0 && 0 != rand.IntN(3) {
+		delta = 0
+		LoveEvent = LovePreventedDecrease
+	}
+
+	// The maximum possible relationship score depends on whether the pets are direct children/parents of each other.
+	maxScore := TamaRelationshipScoreLimit
+	if this.IsRelatedTo(other.Id) {
+		maxScore -= 1
+	}
+
+	// Update the relationship score
 	this.Relationships[other.Id] =
-		utils.Clamp(this.Relationships[other.Id]+delta, -TamaRelationshipScoreLimit, TamaRelationshipScoreLimit)
+		utils.Clamp(this.Relationships[other.Id]+delta, -TamaRelationshipScoreLimit, maxScore)
 
 	// Anytime a relationship score changes, there's a 33% chance the Tama's mood changes by 1 in the same direction.
 	moodDelta := 0
@@ -144,8 +182,31 @@ func (this *Tama) ModifyRelationshipScoreWith(
 		this.ModifyMood(Mood(moodDelta))
 	}
 
-	relationshipScoreChange := this.Relationships[other.Id] - oldRelationshipScore
-	return relationshipScoreChange, Mood(moodDelta), RelationshipScore(friendlyBonus)
+	// Check for falling in love
+	if this.Relationships[other.Id] == TamaRelationshipScoreLimit &&
+		other.Relationships[this.Id] == TamaRelationshipScoreLimit &&
+		this.LoveTarget == NoId && other.LoveTarget == NoId {
+		this.LoveTarget = other.Id
+		other.LoveTarget = this.Id
+		LoveEvent = FellInLove
+	}
+
+	// Check for falling out of love
+	if (this.Relationships[other.Id] <= 0 ||
+		other.Relationships[this.Id] <= 0) &&
+		this.LoveTarget == other.Id && other.LoveTarget == this.Id {
+		this.LoveTarget = NoId
+		other.LoveTarget = NoId
+		LoveEvent = FellOutOfLove
+	}
+
+	// Build result
+	return RelationshipScoreModificationResult{
+		FinalDelta:    this.Relationships[other.Id] - oldRelationshipScore,
+		MoodDelta:     Mood(moodDelta),
+		FriendlyBonus: RelationshipScore(friendlyBonus),
+		LoveEvent:     LoveEvent,
+	}
 }
 
 // Whether the egg is claimed/owned or not.
@@ -186,11 +247,27 @@ func (this *Tama) GetNextCareTime() time.Time {
 	return time.Unix(this.LastCareTime, 0).Add(cooldown)
 }
 
-// Hatch!
+// The egg hatches!
 func (this *Tama) Hatch() {
 	this.HatchedTime = time.Now().Unix()
-	this.PositiveTraits = utils.ChooseRandomNIntegers(2, PositiveTraitMax)
-	this.NegativeTraits = utils.ChooseRandomNIntegers(1, NegativeTraitMax)
+
+	// If this egg was a result of two other pets mating, it will already have its starting traits set to the union
+	// of its parents' sets of traits. We must now choose from those pools.
+	numPositiveTraits := 2
+	numNegativeTraits := 1
+	if this.Parents.Size() > 0 {
+		this.PositiveTraits = this.PositiveTraits.ChooseRandomNFromSet(numPositiveTraits)
+		this.NegativeTraits = this.NegativeTraits.ChooseRandomNFromSet(numNegativeTraits)
+	} else {
+		// Otherwise, generate some random fresh traits.
+		this.PositiveTraits = utils.ChooseRandomNIntegers(numPositiveTraits, PositiveTraitMax)
+		this.NegativeTraits = utils.ChooseRandomNIntegers(numNegativeTraits, NegativeTraitMax)
+	}
+
+	// Set initial relationship scores with parents to one less than "courting".
+	for parent := range this.Parents.All() {
+		this.Relationships[parent] = TamaRelationshipScoreLimit - 1
+	}
 }
 
 // Get a string describing the Tama's mood.
@@ -236,4 +313,14 @@ func (this *Tama) GetMoodString() string {
 	}
 
 	return fmt.Sprintf("%s (mood %s%d)", moodDesc, utils.SignString(this.Mood), this.Mood)
+}
+
+// Whether this Tama is courting another.
+func (this *Tama) IsCourting(other *Tama) bool {
+	return this.Relationships[other.Id] == TamaRelationshipScoreLimit && this.LoveTarget == NoId
+}
+
+// Whether this tama is in love with another.
+func (this *Tama) Loves(other *Tama) bool {
+	return this.LoveTarget == other.Id
 }

@@ -37,6 +37,18 @@ func (s *Set[T]) Add(obj T) bool {
 	return true
 }
 
+// Merges in all values from the other Set. Returns false if the set wasn't modified (all values were already present).
+func (s *Set[T]) Merge(other *Set[T]) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	modified := false
+	for elem := range other.All() {
+		modified = s.Add(elem) || modified
+	}
+	return modified
+}
+
 // Remove deletes a value. Returns false if the value was not found.
 func (s *Set[T]) Remove(obj T) bool {
 	s.mu.Lock()
@@ -79,6 +91,23 @@ func (s *Set[T]) Size() int {
 	defer s.mu.RUnlock()
 
 	return len(s.data)
+}
+
+// Choose N distinct options from this Set randomly, returning a new Set of those choices.
+func (s *Set[T]) ChooseRandomNFromSet(n int) *Set[T] {
+	result := NewSet[T]()
+
+	keys := make([]T, 0, s.Size())
+	for k := range s.data {
+		keys = append(keys, k)
+	}
+
+	indeces := ChooseRandomNIntegers(n, s.Size())
+	for index := range indeces.All() {
+		result.Add(keys[index])
+	}
+
+	return result
 }
 
 // Since making the class thread-safe has the tradeoff of hiding the map data in a private variable,

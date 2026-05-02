@@ -516,10 +516,15 @@ func chooseRandomInteraction(instigator *models.Tama, target *models.Tama) (mode
 	weights[models.Gift] = 2
 	weights[models.PickOn] = 1
 
-	// Bullies have an increased chance to pick on other pets.
+	// Bullies have twice the chance to pick on other pets.
 	isABully := instigator.NegativeTraits.Contains(models.Bully)
 	if isABully {
-		weights[models.PickOn] = 2
+		weights[models.PickOn] *= 2
+	}
+
+	// When a pet is courting another, it has twice the chance to give gifts.
+	if instigator.IsCourting(target) {
+		weights[models.Gift] *= 2
 	}
 
 	totalWeight := 0
@@ -564,6 +569,74 @@ func chooseRandomGiftOutcome() models.GiftOutcome {
 	panic(fmt.Sprintf("Shouldn't have gotten here! Remaining roll: %d", roll))
 }
 
+func documentDirectionalInteractionResult(
+	this *models.Tama,
+	other *models.Tama,
+	desiredChange models.RelationshipScore,
+	result models.RelationshipScoreModificationResult,
+	indent string,
+) string {
+	var summary string
+
+	// Document primary and secondary effects
+	if desiredChange != 0 {
+		if desiredChange == result.FinalDelta {
+			summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
+				indent, this.GetNameAndId(), other.GetNameAndId(),
+				utils.SignString(result.FinalDelta), result.FinalDelta)
+		} else if result.FinalDelta == 0 {
+			if result.LoveEvent == models.LovePreventedDecrease {
+				summary += fmt.Sprintf(
+					"\n%s  - Since they're in love, %s avoided losing %d attitude towards %s (66%% chance).",
+					indent, this.GetNameAndId(), desiredChange, other.GetNameAndId())
+			} else {
+				var verb string
+				var limit models.RelationshipScore
+				if desiredChange > 0 {
+					verb = "improve"
+					limit = models.TamaRelationshipScoreLimit
+				} else {
+					verb = "worsen"
+					limit = -models.TamaRelationshipScoreLimit
+				}
+				summary += fmt.Sprintf("\n%s  - %s's attitude towards %s cannot %s any more (already at %s%d).",
+					indent, this.GetNameAndId(), other.GetNameAndId(), verb, utils.SignString(limit), limit)
+			}
+		} else {
+			var limit models.RelationshipScore
+			if desiredChange > 0 {
+				limit = models.TamaRelationshipScoreLimit
+			} else {
+				limit = -models.TamaRelationshipScoreLimit
+			}
+			summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d (capped at %s%d).",
+				indent, this.GetNameAndId(), other.GetNameAndId(),
+				utils.SignString(result.FinalDelta), result.FinalDelta,
+				utils.SignString(limit), limit)
+		}
+	}
+	if result.FriendlyBonus != 0 {
+		summary += fmt.Sprintf(" This included a %s%d bonus because %s has the Friendly trait (33%% chance).",
+			utils.SignString(result.FriendlyBonus), result.FriendlyBonus,
+			other.GetNameAndId())
+	}
+	if result.MoodDelta != 0 {
+		summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
+			indent, this.GetNameAndId(),
+			utils.SignString(result.MoodDelta), result.MoodDelta)
+	}
+	if result.LoveEvent == models.FellInLove {
+		summary += fmt.Sprintf("\n%s    - Because of this, %s and %s fell in love! :heart:",
+			indent, this.GetNameAndId(), other.GetNameAndId())
+	}
+	if result.LoveEvent == models.FellOutOfLove {
+		summary += fmt.Sprintf("\n%s    - Because of this, %s and %s fell out of love! :broken_heart:",
+			indent, this.GetNameAndId(), other.GetNameAndId())
+	}
+
+	return summary
+}
+
 func tamaInteract(
 	db *bolt.DB,
 	instigatorId models.JacuzziId,
@@ -606,24 +679,18 @@ func tamaInteract(
 		interaction, bullyTraitCausedPickOn := chooseRandomInteraction(&instigator, &target)
 
 		desiredInstigatorRelationshipChange := models.RelationshipScore(0)
-		instigatorRelationshipChange := models.RelationshipScore(0)
-		instigatorMoodDelta := models.Mood(0)
-		instigatorFriendlyBonus := models.RelationshipScore(0)
+		var instigatorResult models.RelationshipScoreModificationResult
 		desiredTargetRelationshipChange := models.RelationshipScore(0)
-		targetRelationshipChange := models.RelationshipScore(0)
-		targetMoodDelta := models.Mood(0)
-		targetFriendlyBonus := models.RelationshipScore(0)
+		var targetResult models.RelationshipScoreModificationResult
 
 		// Execute the interaction
 		switch interaction {
 		case models.Play:
 			// A -> B += 1, B -> A += 1
 			desiredInstigatorRelationshipChange = 1
-			instigatorRelationshipChange, instigatorMoodDelta, instigatorFriendlyBonus =
-				instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
+			instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
 			desiredTargetRelationshipChange = 1
-			targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
-				target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
 			summary += fmt.Sprintf("**%s played with %s**, and they had fun!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		case models.Gift:
@@ -635,23 +702,19 @@ func tamaInteract(
 			case models.Likes:
 				// B -> A += 2
 				desiredTargetRelationshipChange = 2
-				targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
-					target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
 				summary += "liked it!"
 			case models.Indifferent:
 				// A -> B -= 1
 				desiredInstigatorRelationshipChange = -1
-				instigatorRelationshipChange, instigatorMoodDelta, instigatorFriendlyBonus =
-					instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
+				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
 				summary += "didn't care for it!"
 			case models.Hates:
 				// A -> B -= 2, B -> A -= 1
-				desiredTargetRelationshipChange = -2
-				instigatorRelationshipChange, instigatorMoodDelta, instigatorFriendlyBonus =
-					instigator.ModifyRelationshipScoreWith(&target, desiredTargetRelationshipChange)
+				desiredInstigatorRelationshipChange = -2
+				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
 				desiredTargetRelationshipChange = -1
-				targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
-					target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
 				summary += "hated it!"
 			default:
 				panic(fmt.Sprintf("Unknown GiftOutcome %d!", giftOutcome))
@@ -659,8 +722,7 @@ func tamaInteract(
 		case models.PickOn:
 			// B -> A -= 2
 			desiredTargetRelationshipChange = -2
-			targetRelationshipChange, targetMoodDelta, targetFriendlyBonus =
-				target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
 			summary += fmt.Sprintf("**%s picked on %s**, what a dick!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		default:
@@ -685,95 +747,18 @@ func tamaInteract(
 
 		err = bucket.Put(models.BytesFromJacuzziId(instigatorId), instigatorBytes)
 		if err == nil {
-			// Document primary and secondary effects
-			if desiredInstigatorRelationshipChange != 0 {
-				if desiredInstigatorRelationshipChange == instigatorRelationshipChange {
-					summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
-						indent, instigator.GetNameAndId(), target.GetNameAndId(),
-						utils.SignString(instigatorRelationshipChange), instigatorRelationshipChange)
-				} else if instigatorRelationshipChange == 0 {
-					var verb string
-					var limit models.RelationshipScore
-					if desiredInstigatorRelationshipChange > 0 {
-						verb = "improve"
-						limit = models.TamaRelationshipScoreLimit
-					} else {
-						verb = "worsen"
-						limit = -models.TamaRelationshipScoreLimit
-					}
-					summary += fmt.Sprintf("\n%s  - %s's attitude towards %s cannot %s any more (already at %s%d).",
-						indent, instigator.GetNameAndId(), target.GetNameAndId(), verb, utils.SignString(limit), limit)
-				} else {
-					var limit models.RelationshipScore
-					if desiredInstigatorRelationshipChange > 0 {
-						limit = models.TamaRelationshipScoreLimit
-					} else {
-						limit = -models.TamaRelationshipScoreLimit
-					}
-					summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d (capped at %s%d).",
-						indent, instigator.GetNameAndId(), target.GetNameAndId(),
-						utils.SignString(instigatorRelationshipChange), instigatorRelationshipChange,
-						utils.SignString(limit), limit)
-				}
-			}
-			if instigatorFriendlyBonus != 0 {
-				summary += fmt.Sprintf(" This included a %s%d bonus because %s has the Friendly trait (33%% chance).",
-					utils.SignString(instigatorFriendlyBonus), instigatorFriendlyBonus,
-					target.GetNameAndId())
-			}
-			if instigatorMoodDelta != 0 {
-				summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
-					indent, instigator.GetNameAndId(),
-					utils.SignString(instigatorMoodDelta), instigatorMoodDelta)
-			}
+			summary += documentDirectionalInteractionResult(
+				&instigator, &target, desiredInstigatorRelationshipChange, instigatorResult, indent)
 		} else {
 			log.Printf("Couldn't write instigator Tama back to DB: %s\n", err.Error())
 			summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,
 				indent, instigator.GetNameAndId())
 		}
+
 		err = bucket.Put(models.BytesFromJacuzziId(targetId), targetBytes)
 		if err == nil {
-			// Document primary and secondary effects
-			if desiredTargetRelationshipChange != 0 {
-				if desiredTargetRelationshipChange == targetRelationshipChange {
-					summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
-						indent, target.GetNameAndId(), instigator.GetNameAndId(),
-						utils.SignString(targetRelationshipChange), targetRelationshipChange)
-				} else if targetRelationshipChange == 0 {
-					var verb string
-					var limit models.RelationshipScore
-					if desiredTargetRelationshipChange > 0 {
-						verb = "improve"
-						limit = models.TamaRelationshipScoreLimit
-					} else {
-						verb = "worsen"
-						limit = -models.TamaRelationshipScoreLimit
-					}
-					summary += fmt.Sprintf("\n%s  - %s's attitude towards %s cannot %s any more (already at %s%d).",
-						indent, target.GetNameAndId(), instigator.GetNameAndId(), verb, utils.SignString(limit), limit)
-				} else {
-					var limit models.RelationshipScore
-					if desiredTargetRelationshipChange > 0 {
-						limit = models.TamaRelationshipScoreLimit
-					} else {
-						limit = -models.TamaRelationshipScoreLimit
-					}
-					summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d (capped at %s%d).",
-						indent, target.GetNameAndId(), instigator.GetNameAndId(),
-						utils.SignString(targetRelationshipChange), targetRelationshipChange,
-						utils.SignString(limit), limit)
-				}
-			}
-			if targetFriendlyBonus != 0 {
-				summary += fmt.Sprintf(" This included a %s%d bonus because %s has the Friendly trait (33%% chance).",
-					utils.SignString(targetFriendlyBonus), targetFriendlyBonus,
-					instigator.GetNameAndId())
-			}
-			if targetMoodDelta != 0 {
-				summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
-					indent, target.GetNameAndId(),
-					utils.SignString(targetMoodDelta), targetMoodDelta)
-			}
+			summary += documentDirectionalInteractionResult(
+				&target, &instigator, desiredTargetRelationshipChange, targetResult, indent)
 		} else {
 			log.Printf("Couldn't write target Tama back to DB: %s\n", err.Error())
 			summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,

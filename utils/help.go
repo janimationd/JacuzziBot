@@ -39,7 +39,7 @@ func TamaHelp() string {
 
 	result += "Tama is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
 		"play with them to keep them happy and productive. Your Tama pets will interact with other people's pets " +
-		"and develop relationships with them. If Tamas like each other enough, they may fall in love and then mate! " +
+		"and develop relationships with them. If Tamas like each other enough, they may fall in love! " +
 		"Happy Tamas can earn you points, though you'll have to spend points to purchase eggs and keep them fed. " +
 		"Basically, it's (legally distinct) Tamagotchi that can earn you points in the long run!\n"
 
