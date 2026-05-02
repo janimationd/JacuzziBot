@@ -21,7 +21,6 @@ type RelationshipScore int
 const (
 	Friendly PositiveTrait = iota
 	SocialButterfly
-	Sympathetic
 	Fertile
 	// New ones should go above this
 	PositiveTraitMax
@@ -137,12 +136,16 @@ type RelationshipScoreModificationResult struct {
 	FriendlyBonus RelationshipScore
 	// Any special results related to love state.
 	LoveEvent LoveResult
+	// True if the other Tama's Annoying trait blocked a Play-related increase.
+	AnnoyingBlockedIncrease bool
 }
 
-// Modify the Tama's relationship score towards another Tama by a delta.
+// Modify the Tama's relationship score towards another Tama by a delta. If this is due to a TamaInteraction, pass it
+// in for additional effects. If not, pass in TamaInteractionMax.
 func (this *Tama) ModifyRelationshipScoreWith(
 	other *Tama,
 	delta RelationshipScore,
+	interaction TamaInteraction,
 ) RelationshipScoreModificationResult {
 	var LoveEvent LoveResult = NoChange
 
@@ -163,6 +166,13 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	if this.Loves(other) && delta < 0 && 0 != rand.IntN(3) {
 		delta = 0
 		LoveEvent = LovePreventedDecrease
+	}
+
+	// Handle the effect of the Annoying trait (33% chance).
+	annoyingBlockedIncrease := delta > 0 && interaction == Play && other.NegativeTraits.Contains(Annoying) &&
+		0 == rand.IntN(3)
+	if annoyingBlockedIncrease {
+		delta = 0
 	}
 
 	// The maximum possible relationship score depends on whether the pets are direct children/parents of each other.
@@ -202,10 +212,11 @@ func (this *Tama) ModifyRelationshipScoreWith(
 
 	// Build result
 	return RelationshipScoreModificationResult{
-		FinalDelta:    this.Relationships[other.Id] - oldRelationshipScore,
-		MoodDelta:     Mood(moodDelta),
-		FriendlyBonus: RelationshipScore(friendlyBonus),
-		LoveEvent:     LoveEvent,
+		FinalDelta:              this.Relationships[other.Id] - oldRelationshipScore,
+		MoodDelta:               Mood(moodDelta),
+		FriendlyBonus:           RelationshipScore(friendlyBonus),
+		LoveEvent:               LoveEvent,
+		AnnoyingBlockedIncrease: annoyingBlockedIncrease,
 	}
 }
 
@@ -253,7 +264,7 @@ func (this *Tama) Hatch() {
 
 	// If this egg was a result of two other pets mating, it will already have its starting traits set to the union
 	// of its parents' sets of traits. We must now choose from those pools.
-	numPositiveTraits := 2
+	numPositiveTraits := 1
 	numNegativeTraits := 1
 	if this.Parents.Size() > 0 {
 		this.PositiveTraits = this.PositiveTraits.ChooseRandomNFromSet(numPositiveTraits)

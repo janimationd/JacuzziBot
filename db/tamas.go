@@ -589,6 +589,10 @@ func documentDirectionalInteractionResult(
 				summary += fmt.Sprintf(
 					"\n%s  - Since they're in love, %s avoided losing %d attitude towards %s (66%% chance).",
 					indent, this.GetNameAndId(), desiredChange, other.GetNameAndId())
+			} else if result.AnnoyingBlockedIncrease {
+				summary += fmt.Sprintf(
+					"\n%s  - %s's attitude towards %s didn't increase because of %s's Annoying trait (33%% chance).",
+					indent, this.GetNameAndId(), other.GetNameAndId(), other.GetNameAndId())
 			} else {
 				var verb string
 				var limit models.RelationshipScore
@@ -688,9 +692,9 @@ func tamaInteract(
 		case models.Play:
 			// A -> B += 1, B -> A += 1
 			desiredInstigatorRelationshipChange = 1
-			instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
+			instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange, interaction)
 			desiredTargetRelationshipChange = 1
-			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
 			summary += fmt.Sprintf("**%s played with %s**, and they had fun!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		case models.Gift:
@@ -702,19 +706,19 @@ func tamaInteract(
 			case models.Likes:
 				// B -> A += 2
 				desiredTargetRelationshipChange = 2
-				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
 				summary += "liked it!"
 			case models.Indifferent:
 				// A -> B -= 1
 				desiredInstigatorRelationshipChange = -1
-				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
+				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange, interaction)
 				summary += "didn't care for it!"
 			case models.Hates:
 				// A -> B -= 2, B -> A -= 1
 				desiredInstigatorRelationshipChange = -2
-				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange)
+				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange, interaction)
 				desiredTargetRelationshipChange = -1
-				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
 				summary += "hated it!"
 			default:
 				panic(fmt.Sprintf("Unknown GiftOutcome %d!", giftOutcome))
@@ -722,7 +726,7 @@ func tamaInteract(
 		case models.PickOn:
 			// B -> A -= 2
 			desiredTargetRelationshipChange = -2
-			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange)
+			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
 			summary += fmt.Sprintf("**%s picked on %s**, what a dick!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		default:

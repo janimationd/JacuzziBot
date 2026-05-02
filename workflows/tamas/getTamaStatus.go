@@ -76,9 +76,6 @@ func getPositiveTraitsString(this *models.Tama) string {
 				"there's a 33% chance it improves by one extra point.\n"
 		case models.SocialButterfly:
 			result += "Social Butterfly: 33% chance to execute two social interactions whenever one would normally occur.\n"
-		case models.Sympathetic:
-			result += "Sympathetic: 33% chance to console one Tama who is picked on (per play session), " +
-				"mutually increasing attitudes toward each other by 1.\n"
 		case models.Fertile:
 			result += "Fertile: increased chance to mate with the target of love (future feature).\n"
 		}
