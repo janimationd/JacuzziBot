@@ -218,10 +218,10 @@ func careForTama(
 	db *bolt.DB,
 	tamaId models.JacuzziId,
 	userTimezone *time.Location,
-) (*models.Tama, bool, bool, error) {
+) (*models.Tama, models.ModifyMoodResult, bool, error) {
 	tama := &models.Tama{}
 	hatched := false
-	modified := false
+	modified := models.ModifyMoodResultMax
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaBucketName))
@@ -277,7 +277,7 @@ func careForTama(
 	})
 
 	if err != nil {
-		return nil, false, false, err
+		return nil, models.ModifyMoodResultMax, false, err
 	}
 
 	return tama, modified, hatched, nil
@@ -865,11 +865,11 @@ func CareForTama(
 	serverId string,
 	tamaId models.JacuzziId,
 	userTimezone *time.Location,
-) (*models.Tama, bool, bool, error) {
+) (*models.Tama, models.ModifyMoodResult, bool, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
-		return nil, false, false, err
+		return nil, models.ModifyMoodResultMax, false, err
 	}
 	defer db.Close()
 

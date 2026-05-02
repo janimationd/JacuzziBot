@@ -105,11 +105,31 @@ func (this *Tama) IsRelatedTo(otherId JacuzziId) bool {
 	return this.Parents.Contains(otherId) || this.Children.Contains(otherId)
 }
 
-// Modify the Tama's mood by a delta. Returns true if the moof was modified, false if it was already at a limit.
-func (this *Tama) ModifyMood(delta Mood) bool {
+type ModifyMoodResult int
+
+const (
+	// The mood was modified
+	Modified ModifyMoodResult = iota
+	// The mood wasn't modified because it was already at the limit
+	UnchangedAtLimit
+	// The mood wasn't mopified the Tama is dead
+	UnchangedDead
+	// All new values should go above this
+	ModifyMoodResultMax
+)
+
+// Modify the Tama's mood by a delta. Returns true if the mood was modified, false if dead or already at a limit.
+func (this *Tama) ModifyMood(delta Mood) ModifyMoodResult {
 	beforeMood := this.Mood
+	// Dead Tamas can't be resurrected
+	if this.IsDead() {
+		return UnchangedDead
+	}
 	this.Mood = utils.Clamp(this.Mood+delta, -TamaMoodLimit, TamaMoodLimit)
-	return beforeMood != this.Mood
+	if beforeMood != this.Mood {
+		return UnchangedAtLimit
+	}
+	return Modified
 }
 
 // The result of a relationship score change w.r.t. love states.
@@ -117,7 +137,7 @@ type LoveResult int
 
 const (
 	// Nothing happened w.r.t. the pets' love state.
-	NoChange = iota
+	NoChange LoveResult = iota
 	// The pets fell in love!
 	FellInLove
 	// The pets are in love, and this prevented them from losing relationship score.
@@ -189,7 +209,9 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	moodDelta := 0
 	if 0 == rand.IntN(3) {
 		moodDelta = utils.Sign(delta)
-		this.ModifyMood(Mood(moodDelta))
+		if this.ModifyMood(Mood(moodDelta)) != Modified {
+			moodDelta = 0
+		}
 	}
 
 	// Check for falling in love

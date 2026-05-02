@@ -70,10 +70,11 @@ var CareTama = models.SlashCommand{
 		}
 
 		// Attempt to care for this Tama
-		var modified, hatched bool
+		var modifyMoodResult models.ModifyMoodResult
+		var hatched bool
 		var tama *models.Tama
 		if errorMessage == "" {
-			tama, modified, hatched, err = db.CareForTama(serverId, id, userTimezone)
+			tama, modifyMoodResult, hatched, err = db.CareForTama(serverId, id, userTimezone)
 			if err != nil {
 				errorMessage = err.Error()
 			}
@@ -100,7 +101,7 @@ var CareTama = models.SlashCommand{
 				message = fmt.Sprintf("You have cared for egg #%d. Only %d days left before it hatches!",
 					id, careCountBeforeHatching)
 				flags = discordgo.MessageFlagsEphemeral
-			} else if modified {
+			} else if modifyMoodResult == models.Modified {
 				message = fmt.Sprintf("You have played with Tama %s, improving its mood, and it's now %s!",
 					tama.GetNameAndId(), tama.GetMoodString())
 				flags = discordgo.MessageFlagsEphemeral
