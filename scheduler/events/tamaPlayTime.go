@@ -9,8 +9,10 @@ import (
 	"slices"
 
 	"github.com/janimationd/JacuzziBot/db"
-	"github.com/janimationd/JacuzziBot/discord"
+	"github.com/janimationd/JacuzziBot/discord/session"
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/workflows/tamas"
+	"go.etcd.io/bbolt"
 )
 
 func chooseRandomOtherTama(firstTama *models.Tama, allTamas map[models.JacuzziId]*models.Tama) *models.Tama {
@@ -35,10 +37,11 @@ func chooseRandomOtherTama(firstTama *models.Tama, allTamas map[models.JacuzziId
 func interact(
 	serverId string,
 	tamaStale *models.Tama,
-	tamas map[models.JacuzziId]*models.Tama,
+	otherTamas map[models.JacuzziId]*models.Tama,
 	indent string,
+	tx *bbolt.Tx,
 ) (string, error) {
-	otherTamaStale := chooseRandomOtherTama(tamaStale, tamas)
+	otherTamaStale := chooseRandomOtherTama(tamaStale, otherTamas)
 
 	// Previous interactions might've updated the Tamas here in the DB, so we should fetch them again.
 	tama, err := db.GetTama(serverId, tamaStale.Id)
@@ -55,20 +58,32 @@ func interact(
 		return "", fmt.Errorf("Skipping newly dead Tama.")
 	}
 
-	summary, err := db.TamaInteract(serverId, tama.Id, otherTama.Id, indent)
+	result, err := db.TamaInteract(serverId, tama.Id, otherTama.Id, indent)
 	if err != nil {
 		log.Printf("%s couldn't interact with %s: %s. Skipping.\n",
 			tama.GetNameAndId(), otherTama.GetNameAndId(), err.Error())
 		return "", err
 	}
 
-	return summary, nil
+	for _, newlyDeadTama := range result.NewlyDeadTamas {
+		var interactingTama *models.Tama
+		if newlyDeadTama.Id == tama.Id {
+			interactingTama = otherTama
+		} else {
+			interactingTama = tama
+		}
+		cause := fmt.Sprintf("An interaction with %s", interactingTama.GetNameAndId())
+		// Kick off the delayed workflow for a Tama dying (returns quickly).
+		tamas.HandleTamaDeathWorkflow(serverId, newlyDeadTama.Id, cause, tx)
+	}
+
+	return result.Summary, nil
 }
 
-func TamaPlaytimeHandler(event *models.ScheduledEvent) bool {
+func TamaPlaytimeHandler(event *models.ScheduledEvent, tx *bbolt.Tx) bool {
 	log.Printf("Event %s executed.\n", event.ID)
 
-	if discord.Session == nil {
+	if session.Handle == nil {
 		log.Println("Discord session is nil, not coordinating Tama playtime.")
 		return false
 	}
@@ -102,7 +117,7 @@ func TamaPlaytimeHandler(event *models.ScheduledEvent) bool {
 	}
 	log.Printf("%d Tamas found in server %s.\n", numTamas, serverId)
 
-	// Record a string about what happen for later construction of a channel status message
+	// Record a string about what happened for later construction of a channel status message
 	summary := "# Play time!\nEveryone's Tama's played together. Here's what happened:"
 
 	// Sort a list of all the Tamas by the Owner, so we can group the summary strings into headings per owner.
@@ -127,7 +142,7 @@ func TamaPlaytimeHandler(event *models.ScheduledEvent) bool {
 			lastOwner = tama.Owner
 		}
 
-		summaryFirst, err := interact(serverId, tama, tamas, "")
+		summaryFirst, err := interact(serverId, tama, tamas, "", tx)
 		if err != nil {
 			log.Printf("Tama couldn't interact, skipping: %s\n", err.Error())
 			continue
@@ -136,7 +151,7 @@ func TamaPlaytimeHandler(event *models.ScheduledEvent) bool {
 
 		// Handle the effect of the Social Butterfly trait (33% chance)
 		if tama.PositiveTraits.Contains(models.SocialButterfly) && 0 == rand.IntN(3) {
-			summarySecond, err := interact(serverId, tama, tamas, "  ")
+			summarySecond, err := interact(serverId, tama, tamas, "  ", tx)
 			if err != nil {
 				log.Printf("Tama couldn't interact again, skipping: %s\n", err.Error())
 				continue
@@ -148,7 +163,7 @@ func TamaPlaytimeHandler(event *models.ScheduledEvent) bool {
 	}
 
 	// Send the summary message to the channel
-	discord.Session.ChannelMessageSend(channelId, summary)
+	session.Handle.ChannelMessageSend(channelId, summary)
 
 	return false
 }

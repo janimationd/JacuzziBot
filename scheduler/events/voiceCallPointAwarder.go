@@ -6,8 +6,9 @@ import (
 
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/db"
-	"github.com/janimationd/JacuzziBot/discord"
+	"github.com/janimationd/JacuzziBot/discord/session"
 	"github.com/janimationd/JacuzziBot/models"
+	"go.etcd.io/bbolt"
 )
 
 // When X people are in a voice call, award them each Y points every minute.
@@ -18,14 +19,14 @@ var VoiceCallPointAwarder = models.ScheduledEvent{
 	RestartGapTolerance: 5 * time.Minute,
 }
 
-func VoiceCallPointAwarderHandler(event *models.ScheduledEvent) bool {
-	if discord.Session == nil {
+func VoiceCallPointAwarderHandler(event *models.ScheduledEvent, _ *bbolt.Tx) bool {
+	if session.Handle == nil {
 		log.Println("Discord session is nil, not checking voice calls.")
 		return false
 	}
 
 	// Iterate over all of the servers/guilds we're currently connected to.
-	for _, guild := range discord.Session.State.Guilds {
+	for _, guild := range session.Handle.State.Guilds {
 		voiceCalls, err := db.GetAllVoiceCallsWithParticipants(guild.ID)
 		if err != nil {
 			log.Printf("Unable to fetch voice calls for server %s (%s): %s\n", guild.ID, guild.Name, err.Error())

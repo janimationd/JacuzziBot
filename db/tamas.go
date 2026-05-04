@@ -10,6 +10,7 @@ import (
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
+	"go.etcd.io/bbolt"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -221,7 +222,7 @@ func careForTama(
 ) (*models.Tama, models.ModifyMoodResult, bool, error) {
 	tama := &models.Tama{}
 	hatched := false
-	modified := models.ModifyMoodResultMax
+	result := models.ModifyMoodResult{}
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaBucketName))
@@ -259,7 +260,7 @@ func careForTama(
 				hatched = true
 			}
 		} else {
-			modified = tama.ModifyMood(1)
+			result = tama.ModifyMood(1)
 		}
 
 		// Save it back to the DB
@@ -277,10 +278,10 @@ func careForTama(
 	})
 
 	if err != nil {
-		return nil, models.ModifyMoodResultMax, false, err
+		return nil, result, false, err
 	}
 
-	return tama, modified, hatched, nil
+	return tama, result, hatched, nil
 }
 
 func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
@@ -628,6 +629,10 @@ func documentDirectionalInteractionResult(
 		summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
 			indent, this.GetNameAndId(),
 			utils.SignString(result.MoodDelta), result.MoodDelta)
+		if result.JustDied {
+			summary += fmt.Sprintf("\n%s      - **Because of this %s has become so sad it died!** :skull:",
+				indent, this.GetNameAndId())
+		}
 	}
 	if result.LoveEvent == models.FellInLove {
 		summary += fmt.Sprintf("\n%s    - Because of this, %s and %s fell in love! :heart:",
@@ -641,13 +646,23 @@ func documentDirectionalInteractionResult(
 	return summary
 }
 
+type TamaInteractionResult struct {
+	// The summary string of what happened (for displaying to the players).
+	Summary string
+	// Any Tamas that died as a result of this interaction.
+	NewlyDeadTamas []*models.Tama
+}
+
 func tamaInteract(
 	db *bolt.DB,
 	instigatorId models.JacuzziId,
 	targetId models.JacuzziId,
 	indent string,
-) (string, error) {
-	summary := fmt.Sprintf("%s- ", indent)
+) (TamaInteractionResult, error) {
+	result := TamaInteractionResult{
+		Summary:        fmt.Sprintf("%s- ", indent),
+		NewlyDeadTamas: make([]*models.Tama, 0),
+	}
 
 	err := db.Update(func(tx *bolt.Tx) error {
 		// Fetch current state of both Tamas
@@ -666,10 +681,10 @@ func tamaInteract(
 			return fmt.Errorf("Target Tama %d doesn't exist!", targetId)
 		}
 
-		instigator := models.Tama{}
-		target := models.Tama{}
+		instigator := &models.Tama{}
+		target := &models.Tama{}
 
-		err := json.Unmarshal(instigatorBytes, &instigator)
+		err := json.Unmarshal(instigatorBytes, instigator)
 		if err != nil {
 			return err
 		}
@@ -680,7 +695,7 @@ func tamaInteract(
 		}
 
 		// Choose a random interaction
-		interaction, bullyTraitCausedPickOn := chooseRandomInteraction(&instigator, &target)
+		interaction, bullyTraitCausedPickOn := chooseRandomInteraction(instigator, target)
 
 		desiredInstigatorRelationshipChange := models.RelationshipScore(0)
 		var instigatorResult models.RelationshipScoreModificationResult
@@ -692,13 +707,15 @@ func tamaInteract(
 		case models.Play:
 			// A -> B += 1, B -> A += 1
 			desiredInstigatorRelationshipChange = 1
-			instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange, interaction)
+			instigatorResult = instigator.ModifyRelationshipScoreWith(
+				target, desiredInstigatorRelationshipChange, interaction)
 			desiredTargetRelationshipChange = 1
-			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
-			summary += fmt.Sprintf("**%s played with %s**, and they had fun!",
+			targetResult = target.ModifyRelationshipScoreWith(
+				instigator, desiredTargetRelationshipChange, interaction)
+			result.Summary += fmt.Sprintf("**%s played with %s**, and they had fun!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		case models.Gift:
-			summary += fmt.Sprintf("**%s gave %s a gift**, and %s ",
+			result.Summary += fmt.Sprintf("**%s gave %s a gift**, and %s ",
 				instigator.GetNameAndId(), target.GetNameAndId(), target.GetNameAndId())
 			// Choose the outcome of the gift giving
 			giftOutcome := chooseRandomGiftOutcome()
@@ -706,28 +723,33 @@ func tamaInteract(
 			case models.Likes:
 				// B -> A += 2
 				desiredTargetRelationshipChange = 2
-				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
-				summary += "liked it!"
+				targetResult = target.ModifyRelationshipScoreWith(
+					instigator, desiredTargetRelationshipChange, interaction)
+				result.Summary += "liked it!"
 			case models.Indifferent:
 				// A -> B -= 1
 				desiredInstigatorRelationshipChange = -1
-				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange, interaction)
-				summary += "didn't care for it!"
+				instigatorResult = instigator.ModifyRelationshipScoreWith(
+					target, desiredInstigatorRelationshipChange, interaction)
+				result.Summary += "didn't care for it!"
 			case models.Hates:
 				// A -> B -= 2, B -> A -= 1
 				desiredInstigatorRelationshipChange = -2
-				instigatorResult = instigator.ModifyRelationshipScoreWith(&target, desiredInstigatorRelationshipChange, interaction)
+				instigatorResult = instigator.ModifyRelationshipScoreWith(
+					target, desiredInstigatorRelationshipChange, interaction)
 				desiredTargetRelationshipChange = -1
-				targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
-				summary += "hated it!"
+				targetResult = target.ModifyRelationshipScoreWith(
+					instigator, desiredTargetRelationshipChange, interaction)
+				result.Summary += "hated it!"
 			default:
 				panic(fmt.Sprintf("Unknown GiftOutcome %d!", giftOutcome))
 			}
 		case models.PickOn:
 			// B -> A -= 2
 			desiredTargetRelationshipChange = -2
-			targetResult = target.ModifyRelationshipScoreWith(&instigator, desiredTargetRelationshipChange, interaction)
-			summary += fmt.Sprintf("**%s picked on %s**, what a dick!",
+			targetResult = target.ModifyRelationshipScoreWith(
+				instigator, desiredTargetRelationshipChange, interaction)
+			result.Summary += fmt.Sprintf("**%s picked on %s**, what a dick!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		default:
 			panic(fmt.Sprintf("Unknown TamaInteraction %d!", interaction))
@@ -735,8 +757,17 @@ func tamaInteract(
 
 		// Document any special reasons for the interaction
 		if bullyTraitCausedPickOn {
-			summary += fmt.Sprintf("\n%s  - This only happened because %s has the Bully trait (doubled option weight).",
+			result.Summary += fmt.Sprintf(
+				"\n%s  - This only happened because %s has the Bully trait (doubled option weight).",
 				indent, instigator.GetNameAndId())
+		}
+
+		// Return info about any deaths for handling
+		if instigatorResult.JustDied {
+			result.NewlyDeadTamas = append(result.NewlyDeadTamas, instigator)
+		}
+		if targetResult.JustDied {
+			result.NewlyDeadTamas = append(result.NewlyDeadTamas, target)
 		}
 
 		// Write any changes back to DB
@@ -751,21 +782,22 @@ func tamaInteract(
 
 		err = bucket.Put(models.BytesFromJacuzziId(instigatorId), instigatorBytes)
 		if err == nil {
-			summary += documentDirectionalInteractionResult(
-				&instigator, &target, desiredInstigatorRelationshipChange, instigatorResult, indent)
+			result.Summary += documentDirectionalInteractionResult(
+				instigator, target, desiredInstigatorRelationshipChange, instigatorResult, indent)
 		} else {
 			log.Printf("Couldn't write instigator Tama back to DB: %s\n", err.Error())
-			summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,
-				indent, instigator.GetNameAndId())
+			result.Summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+
+				constants.ErrorReportMessageSuffix, indent, instigator.GetNameAndId())
 		}
 
 		err = bucket.Put(models.BytesFromJacuzziId(targetId), targetBytes)
 		if err == nil {
-			summary += documentDirectionalInteractionResult(
-				&target, &instigator, desiredTargetRelationshipChange, targetResult, indent)
+			result.Summary += documentDirectionalInteractionResult(
+				target, instigator, desiredTargetRelationshipChange, targetResult, indent)
 		} else {
 			log.Printf("Couldn't write target Tama back to DB: %s\n", err.Error())
-			summary += fmt.Sprintf("\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,
+			result.Summary += fmt.Sprintf(
+				"\n%s  - **Error updating %s in the database**"+constants.ErrorReportMessageSuffix,
 				indent, target.GetNameAndId())
 		}
 
@@ -773,11 +805,78 @@ func tamaInteract(
 	})
 
 	if err != nil {
-		return "", err
+		return result, err
 	}
 
-	return summary, nil
+	return result, nil
 }
+
+type TamaDeathReactionResult struct {
+	// The final state of the Tama after it reacts to the death.
+	Tama *models.Tama
+	// The amount by which the Tama's mood changed.
+	FinalMoodDelta models.Mood
+}
+
+func tamaReactToDeath(
+	db *bbolt.DB,
+	tamaId models.JacuzziId,
+	deadTamaId models.JacuzziId,
+) (TamaDeathReactionResult, error) {
+	result := TamaDeathReactionResult{
+		Tama: &models.Tama{},
+	}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Bucket %s didn't exist when trying to react to a Tama death.\n", tamaBucketName)
+		}
+
+		tamaBytes := bucket.Get(models.BytesFromJacuzziId(tamaId))
+		if tamaBytes == nil {
+			return fmt.Errorf("Couldn't find Tama %d in database when trying to react to a Tama death.\n", tamaId)
+		}
+		err := json.Unmarshal(tamaBytes, result.Tama)
+		if err != nil {
+			return fmt.Errorf("Couldn't unmarshall tama %d when trying to react to death: %w", tamaId, err)
+		}
+
+		// Modify the Tama's mood based on its attitude towards the dead Tama.
+		relationshipScore := result.Tama.Relationships[deadTamaId]
+		moodDelta := models.Mood(relationshipScore * -2)
+		log.Printf("tamaReactToDeath: relationshipScore=%d, moodDelta=%d", relationshipScore, moodDelta)
+
+		// Don't allow outright death due to this, cap at one above death.
+		moodDiffToDeath := -models.TamaMoodLimit - result.Tama.Mood
+		moodDelta = max(moodDelta, moodDiffToDeath+1)
+		log.Printf("tamaReactToDeath: moodDiffToDeath=%d, moodDelta=%d", moodDiffToDeath, moodDelta)
+
+		modifyMoodResult := result.Tama.ModifyMood(moodDelta)
+		result.FinalMoodDelta = modifyMoodResult.FinalDelta
+		log.Printf("tamaReactToDeath: FinalMoodDelta=%d", result.FinalMoodDelta)
+
+		tamaBytes, err = json.Marshal(result.Tama)
+		if err != nil {
+			return fmt.Errorf("Couldn't marshall Tama back to JSON when reacting to Tama death: %w", err)
+		}
+
+		err = bucket.Put(models.BytesFromJacuzziId(tamaId), tamaBytes)
+		if err != nil {
+			return fmt.Errorf("Couldn't write Tama back to DB when reacting to Tama death: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
+}
+
+// Public methods
 
 func RegisterTamaChannel(serverId string, channelId string) error {
 	// Create or open a server-specific database file
@@ -869,7 +968,7 @@ func CareForTama(
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
-		return nil, models.ModifyMoodResultMax, false, err
+		return nil, models.ModifyMoodResult{}, false, err
 	}
 	defer db.Close()
 
@@ -969,13 +1068,30 @@ func TamaInteract(
 	instigatorId models.JacuzziId,
 	targetId models.JacuzziId,
 	indent string,
-) (string, error) {
+) (TamaInteractionResult, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
-		return "", err
+		return TamaInteractionResult{}, err
 	}
 	defer db.Close()
 
 	return tamaInteract(db, instigatorId, targetId, indent)
+}
+
+// This can be used in re-entrant contexts, so use the existing tx if it is present.
+func TamaReactToDeath(
+	serverId string,
+	tamaId models.JacuzziId,
+	deadTamaId models.JacuzziId,
+	tx *bbolt.Tx,
+) (TamaDeathReactionResult, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return TamaDeathReactionResult{}, err
+	}
+	defer db.Close()
+
+	return tamaReactToDeath(db, tamaId, deadTamaId)
 }

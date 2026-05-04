@@ -7,7 +7,7 @@ import (
 
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
-	"github.com/janimationd/JacuzziBot/scheduler/events"
+	"go.etcd.io/bbolt"
 )
 
 // The registered event handlers.
@@ -22,13 +22,16 @@ func RegisterHandler(handlerName string, handler models.EventHandler, overwriteI
 
 // This ensures both that the event is in the database already (indexed by event.ID) and that the handler is
 // registered (indexed by event.Handler). Caller chooses whether to overwrite if values for those keys already exist.
+// Can be called from a re-entrant context, so reuse the tx if provided.
 func RegisterEventAndHandler(
 	event *models.ScheduledEvent,
 	handler models.EventHandler,
 	overwriteIfPresent bool,
+	tx *bbolt.Tx,
 ) error {
+	//debug.PrintStack()
 	// Add to the database.
-	_, err := db.ScheduleEvent(event, overwriteIfPresent)
+	_, err := db.ScheduleEvent(event, overwriteIfPresent, tx)
 	if err != nil {
 		return err
 	}
@@ -36,34 +39,10 @@ func RegisterEventAndHandler(
 	return nil
 }
 
-// Puts all crucial events on the schedule at startup. "Crucial" here just means "we know we need it at startup".
-func setupCrucialEventsAndHandlers() {
-	// Schedule all crucial events here. Examples (though they should each be defined in their own files):
-	//
-	// schedule = append(schedule, &ScheduledEvent{
-	// 	   ID:                  "RecurringEvent",
-	//     Interval:            1 * time.Minute,
-	//     RestartGapTolerance: 5 * time.Minute,
-	//     ...
-	// })
-	//
-	// schedule = append(schedule, &ScheduledEvent{
-	// 	   ID:       "OneOffEvent",
-	// 	   NextTime: time.Now().Add(30 * time.Second),
-	//     ...
-	// })
-	RegisterEventAndHandler(&events.VoiceCallPointAwarder, events.VoiceCallPointAwarderHandler, false)
-
-	// Register all handlers for events that could be stored in the database already or could be scheduled later.
-	RegisterHandler("TamaPlaytimeHandler", events.TamaPlaytimeHandler, true)
-}
-
 const checkInterval = 1 * time.Second
 
 // Setup and run the schedule.
 func Run(ctx context.Context) {
-	setupCrucialEventsAndHandlers()
-
 	for {
 		loopStartTime := time.Now()
 		select {
@@ -72,7 +51,7 @@ func Run(ctx context.Context) {
 			return
 		default:
 			// Execute logic directly inside the database transactions to ensure thread safety.
-			db.ForEachScheduledEvent(func(event *models.ScheduledEvent) (db.EventOperationResult, error) {
+			db.ForEachScheduledEvent(func(event *models.ScheduledEvent, tx *bbolt.Tx) (db.EventOperationResult, error) {
 				handler := eventRegistry[event.Handler]
 				if handler == nil {
 					log.Printf("Event %s had non existent handler %s\n", event.ID, event.Handler)
@@ -80,7 +59,7 @@ func Run(ctx context.Context) {
 				}
 
 				// Run the handler if it's time.
-				modified := event.CheckAndHandle(handler)
+				modified := event.CheckAndHandle(handler, tx)
 
 				if event.IsDone() {
 					log.Printf("Event %s is done; deleting it\n", event.ID)

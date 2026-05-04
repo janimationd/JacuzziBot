@@ -26,7 +26,8 @@ const (
 )
 
 // You MUST NOT read/modify the database inside these operations or we'll be at risk of deadlocking/undefined behavior.
-type ScheduledEventOperation = func(*models.ScheduledEvent) (EventOperationResult, error)
+// The tx parameter should be passed down to any re-entrant DB operations on the events DB.
+type ScheduledEventOperation = func(*models.ScheduledEvent, *bbolt.Tx) (EventOperationResult, error)
 
 func forEachScheduledEvent(db *bbolt.DB, op ScheduledEventOperation) error {
 	return db.Update(func(tx *bbolt.Tx) error {
@@ -45,7 +46,7 @@ func forEachScheduledEvent(db *bbolt.DB, op ScheduledEventOperation) error {
 			}
 
 			// Execute the caller-provided operation on the event
-			opResult, err := op(event)
+			opResult, err := op(event, tx)
 			if err != nil {
 				return err
 			}
@@ -77,34 +78,46 @@ func forEachScheduledEvent(db *bbolt.DB, op ScheduledEventOperation) error {
 	})
 }
 
-func scheduleEvent(db *bbolt.DB, event *models.ScheduledEvent, overwriteIfPresent bool) (bool, error) {
+func scheduleEventWithTx(tx *bbolt.Tx, event *models.ScheduledEvent, overwriteIfPresent bool) (bool, error) {
+	modified := false
+
+	bucket, err := tx.CreateBucketIfNotExists([]byte(scheduleBucketName))
+	if err != nil {
+		return modified, err
+	}
+
+	if !overwriteIfPresent {
+		existingEventBytes := bucket.Get([]byte(event.ID))
+		if existingEventBytes != nil {
+			return modified, nil
+		}
+	}
+
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		return modified, err
+	}
+	err = bucket.Put([]byte(event.ID), eventBytes)
+	if err != nil {
+		modified = true
+	}
+
+	return modified, err
+}
+
+func scheduleEvent(db *bbolt.DB, event *models.ScheduledEvent, overwriteIfPresent bool, tx *bbolt.Tx) (bool, error) {
 	modified := false
 	event.Init()
+	var err error = nil
 
-	err := db.Update(func(tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(scheduleBucketName))
-		if err != nil {
+	if tx == nil {
+		err = db.Update(func(tx *bbolt.Tx) error {
+			modified, err = scheduleEventWithTx(tx, event, overwriteIfPresent)
 			return err
-		}
-
-		if !overwriteIfPresent {
-			existingEventBytes := bucket.Get([]byte(event.ID))
-			if existingEventBytes != nil {
-				return nil
-			}
-		}
-
-		eventBytes, err := json.Marshal(event)
-		if err != nil {
-			return err
-		}
-		err = bucket.Put([]byte(event.ID), eventBytes)
-		if err != nil {
-			modified = true
-		}
-
-		return err
-	})
+		})
+	} else {
+		modified, err = scheduleEventWithTx(tx, event, overwriteIfPresent)
+	}
 
 	if err != nil {
 		log.Printf("Couldn't schedule event %s: %s\n", event.ID, err.Error())
@@ -169,15 +182,20 @@ func ForEachScheduledEvent(op ScheduledEventOperation) error {
 }
 
 // Adds a new event to the schedule. Returns whether the event was added into the schedule in or not.
-func ScheduleEvent(event *models.ScheduledEvent, overwriteIfPresent bool) (bool, error) {
-	// Create or open a server-specific database file
-	db, err := getDb(scheduleDatabaseName)
-	if err != nil {
-		return false, err
-	}
-	defer db.Close()
+// Can be used in a re-entrant context, so reuse tx if it's passed in.
+func ScheduleEvent(event *models.ScheduledEvent, overwriteIfPresent bool, tx *bbolt.Tx) (bool, error) {
+	if tx == nil {
+		// Create or open a server-specific database file
+		db, err := getDb(scheduleDatabaseName)
+		if err != nil {
+			return false, err
+		}
+		defer db.Close()
 
-	return scheduleEvent(db, event, overwriteIfPresent)
+		return scheduleEvent(db, event, overwriteIfPresent, nil)
+	} else {
+		return scheduleEvent(nil, event, overwriteIfPresent, tx)
+	}
 }
 
 // Get all events in the DB, with an optional ID filter.

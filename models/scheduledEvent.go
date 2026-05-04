@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"time"
+
+	"go.etcd.io/bbolt"
 )
 
 // An event in the schedule.
@@ -31,8 +33,9 @@ type ScheduledEvent struct {
 // A function to handle an event when it is time for the event to "happen". You are allowed to edit the event as you
 // see fit, but your handler MUST return true if you edit it so we know to update the event in the database. You DO
 // NOT need to do any timing logic in your function unless you're doing something non-standard. NextTime is advanced
-// by Interval for you after your handler is called.
-type EventHandler func(event *ScheduledEvent) bool
+// by Interval for you after your handler is called. DO NOT initiate any new transaction in the events DB WITHOUT
+// passing tx down and reusing it, or else the program will deadlock.
+type EventHandler func(event *ScheduledEvent, tx *bbolt.Tx) bool
 
 // Set NextTime to be the next wall clock-aligned Interval boundary.
 func (event *ScheduledEvent) Init() {
@@ -76,7 +79,7 @@ func (event *ScheduledEvent) updateNextTime() bool {
 
 // Check if it's time for the event to happen, and then handle it and advance NextTime if yes. Returns whether or not
 // the event was modified.
-func (event *ScheduledEvent) CheckAndHandle(handler EventHandler) bool {
+func (event *ScheduledEvent) CheckAndHandle(handler EventHandler, tx *bbolt.Tx) bool {
 	// If NextTime is more than RestartGapTolerance in the past, then the bot has been shut down for a while and we
 	// shouldn't iterate through every Interval since it last ran to catch back up. Instead skip ahead to what NextTime
 	// should next be.
@@ -97,7 +100,7 @@ func (event *ScheduledEvent) CheckAndHandle(handler EventHandler) bool {
 	now := time.Now()
 	// If it's time to execute the event
 	if now.Equal(event.NextTime) || now.After(event.NextTime) {
-		modified := handler(event)
+		modified := handler(event, tx)
 		// Order of operands is important: always execute updateNextTime().
 		modified = event.updateNextTime() || modified
 		return modified

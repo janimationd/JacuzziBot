@@ -53,6 +53,10 @@ const (
 const TamaMoodLimit Mood = 10
 const TamaRelationshipScoreLimit RelationshipScore = 5
 
+// These are the mood thresholds at or above which Tamas will earn their owner points.
+const TamaMinorPointActionMoodThreshold = TamaMoodLimit / 2
+const TamaMajorPointActionMoodThreshold = TamaMoodLimit
+
 // A Tama pet
 type Tama struct {
 	// The server-unique JacuzziId of the Tama
@@ -105,31 +109,34 @@ func (this *Tama) IsRelatedTo(otherId JacuzziId) bool {
 	return this.Parents.Contains(otherId) || this.Children.Contains(otherId)
 }
 
-type ModifyMoodResult int
+// The result of modifying a Tama's mood.
+type ModifyMoodResult struct {
+	// The actual amount the mood changed by. Could less than expected if capped by a limit.
+	FinalDelta Mood
+	// Is already dead
+	WasDead bool
+	// The Tama lost enough mood to die.
+	JustDied bool
+}
 
-const (
-	// The mood was modified
-	Modified ModifyMoodResult = iota
-	// The mood wasn't modified because it was already at the limit
-	UnchangedAtLimit
-	// The mood wasn't mopified the Tama is dead
-	UnchangedDead
-	// All new values should go above this
-	ModifyMoodResultMax
-)
-
-// Modify the Tama's mood by a delta. Returns true if the mood was modified, false if dead or already at a limit.
+// Modify the Tama's mood by a delta.
 func (this *Tama) ModifyMood(delta Mood) ModifyMoodResult {
 	beforeMood := this.Mood
 	// Dead Tamas can't be resurrected
 	if this.IsDead() {
-		return UnchangedDead
+		return ModifyMoodResult{
+			FinalDelta: 0,
+			WasDead:    true,
+			JustDied:   false,
+		}
 	}
 	this.Mood = utils.Clamp(this.Mood+delta, -TamaMoodLimit, TamaMoodLimit)
-	if beforeMood != this.Mood {
-		return UnchangedAtLimit
+	finalDelta := this.Mood - beforeMood
+	return ModifyMoodResult{
+		FinalDelta: finalDelta,
+		WasDead:    false,
+		JustDied:   this.IsDead(),
 	}
-	return Modified
 }
 
 // The result of a relationship score change w.r.t. love states.
@@ -158,6 +165,10 @@ type RelationshipScoreModificationResult struct {
 	LoveEvent LoveResult
 	// True if the other Tama's Annoying trait blocked a Play-related increase.
 	AnnoyingBlockedIncrease bool
+	// Whether the Tama was already dead.
+	WasDead bool
+	// Whether the Tama just died as a result of a mood change.
+	JustDied bool
 }
 
 // Modify the Tama's relationship score towards another Tama by a delta. If this is due to a TamaInteraction, pass it
@@ -167,7 +178,15 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	delta RelationshipScore,
 	interaction TamaInteraction,
 ) RelationshipScoreModificationResult {
-	var LoveEvent LoveResult = NoChange
+	var loveEvent LoveResult = NoChange
+
+	// Cannot modify relationships for a dead Tama
+	if this.IsDead() {
+		log.Printf("Cannot modify dead Tama %s's relationship score.\n", this.GetNameAndId())
+		return RelationshipScoreModificationResult{
+			WasDead: true,
+		}
+	}
 
 	if this.Relationships == nil {
 		this.Relationships = make(map[JacuzziId]RelationshipScore)
@@ -185,7 +204,7 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	// If the tamas are in love, there's a 66% chance that a decrease in relationship score doesn't happen.
 	if this.Loves(other) && delta < 0 && 0 != rand.IntN(3) {
 		delta = 0
-		LoveEvent = LovePreventedDecrease
+		loveEvent = LovePreventedDecrease
 	}
 
 	// Handle the effect of the Annoying trait (33% chance).
@@ -205,12 +224,22 @@ func (this *Tama) ModifyRelationshipScoreWith(
 	this.Relationships[other.Id] =
 		utils.Clamp(this.Relationships[other.Id]+delta, -TamaRelationshipScoreLimit, maxScore)
 
+	finalDelta := this.Relationships[other.Id] - oldRelationshipScore
+
 	// Anytime a relationship score changes, there's a 33% chance the Tama's mood changes by 1 in the same direction.
-	moodDelta := 0
+	moodDelta := Mood(0)
 	if 0 == rand.IntN(3) {
-		moodDelta = utils.Sign(delta)
-		if this.ModifyMood(Mood(moodDelta)) != Modified {
-			moodDelta = 0
+		moodDelta = Mood(utils.Sign(delta))
+		modifyMoodResult := this.ModifyMood(moodDelta)
+		moodDelta = modifyMoodResult.FinalDelta
+		if modifyMoodResult.JustDied {
+			log.Printf("Tama %s just died as a result of losing mood from interacting with %s.\n",
+				this.GetNameAndId(), other.GetNameAndId())
+			return RelationshipScoreModificationResult{
+				FinalDelta: finalDelta,
+				MoodDelta:  moodDelta,
+				JustDied:   true,
+			}
 		}
 	}
 
@@ -220,7 +249,7 @@ func (this *Tama) ModifyRelationshipScoreWith(
 		this.LoveTarget == NoId && other.LoveTarget == NoId {
 		this.LoveTarget = other.Id
 		other.LoveTarget = this.Id
-		LoveEvent = FellInLove
+		loveEvent = FellInLove
 	}
 
 	// Check for falling out of love
@@ -229,15 +258,15 @@ func (this *Tama) ModifyRelationshipScoreWith(
 		this.LoveTarget == other.Id && other.LoveTarget == this.Id {
 		this.LoveTarget = NoId
 		other.LoveTarget = NoId
-		LoveEvent = FellOutOfLove
+		loveEvent = FellOutOfLove
 	}
 
 	// Build result
 	return RelationshipScoreModificationResult{
-		FinalDelta:              this.Relationships[other.Id] - oldRelationshipScore,
+		FinalDelta:              finalDelta,
 		MoodDelta:               Mood(moodDelta),
 		FriendlyBonus:           RelationshipScore(friendlyBonus),
-		LoveEvent:               LoveEvent,
+		LoveEvent:               loveEvent,
 		AnnoyingBlockedIncrease: annoyingBlockedIncrease,
 	}
 }
