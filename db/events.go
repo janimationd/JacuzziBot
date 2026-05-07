@@ -168,6 +168,32 @@ func getAllEvents(db *bbolt.DB, idFilterRegex string) ([]*models.ScheduledEvent,
 	return result, nil
 }
 
+func cancelEvent(db *bbolt.DB, eventId string) bool {
+	cancelled := false
+	db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(scheduleBucketName))
+		if bucket == nil {
+			return nil
+		}
+
+		exists := bucket.Get([]byte(eventId)) != nil
+		if exists {
+			err := bucket.Delete([]byte(eventId))
+			if err != nil {
+				log.Printf("Couldn't delete scheduled event: %s\n", err.Error())
+				return err
+			}
+
+			cancelled = true
+		}
+		return nil
+	})
+
+	return cancelled
+}
+
+// PUBLIC METHODS
+
 // Perform an operation on each event in the schedule. Your op returns what we should do with the event after
 // the function completes. If op returns an error, the entire loop exits early and the error is returned.
 func ForEachScheduledEvent(op ScheduledEventOperation) error {
@@ -209,4 +235,17 @@ func GetAllEvents(idFilterRegex string) ([]*models.ScheduledEvent, error) {
 	defer db.Close()
 
 	return getAllEvents(db, idFilterRegex)
+}
+
+// Cancel an event based on its ID. Returns whether the event was cancelled. If false, assume the event didn't exist.
+func CancelEvent(eventId string) bool {
+	// Create or open a server-specific database file
+	db, err := getDb(scheduleDatabaseName)
+	if err != nil {
+		log.Printf("Couldn't open schedule DB to cancel: %s\n", err.Error())
+		return false
+	}
+	defer db.Close()
+
+	return cancelEvent(db, eventId)
 }
