@@ -65,9 +65,11 @@ type Tama struct {
 	Owner string
 	// The user-configured name of the Tama after it has hatched.
 	Name string
-	// How hungry the Tama is. Starts at 0, and increases by 1 at midnight each day. Feeding reduces it by 1.
-	// Before its hunger increases each day, its hunger at the end of the last day is used to decrease its mood.
-	Hunger Hunger
+	// The last time the pet was fed by its owner. When first hatched, this will be its hatched time, so the owner
+	// doesn't have to feed it that day.
+	LastFeedTime int64
+	// The hunger value at the LastFeedTime. Updates every time the pet is fed.
+	LastHunger Hunger
 	// The mood of the Tama pet after it has hatched. Range [-10, 10], -10 = dead.
 	Mood Mood
 	// How much this Tama likes other Tamas it has interacted with. Range [-5, 5].
@@ -92,6 +94,40 @@ type Tama struct {
 	LastCareTime int64
 	// The ID of the server where this Tama exists.
 	ServerId string
+}
+
+// Count the amount of midnights between from and to in the given timezone.
+func midnightsBetween(from, to time.Time, loc *time.Location) int {
+	count := -1
+	current := from
+	for !current.After(to) {
+		// Step exactly one calendar day forward in local time,
+		// letting time.Date handle any DST normalization.
+		y, m, d := current.Date()
+		current = time.Date(y, m, d+1, 0, 0, 0, 0, loc)
+		count++
+	}
+	return count
+}
+
+// How hungry the Tama is. Starts at 0, and increases by 1 at midnight each day. Feeding reduces it by 1.
+// Before its hunger increases each day, its hunger at the end of the last day is used to decrease its mood.
+// Must pass in the owner timezone so we can calculate the hunger correctly.
+func (this *Tama) Hunger(timezone *time.Location) Hunger {
+	nowLocal := time.Now().In(timezone)
+	lastFeedTimeLocal := time.Unix(this.LastFeedTime, 0).In(timezone)
+
+	// Count midnights that have elapsed since LastFeedTime by comparing calendar dates in the owner's local timezone.
+	midnightsSinceLastFeed := midnightsBetween(lastFeedTimeLocal, nowLocal, timezone)
+
+	return this.LastHunger + Hunger(midnightsSinceLastFeed)
+}
+
+// Feed the Tama one food.
+func (this *Tama) Feed(timezone *time.Location) {
+	currentHunger := this.Hunger(timezone)
+	this.LastFeedTime = time.Now().Unix()
+	this.LastHunger = Hunger(max(0, int(currentHunger)-1))
 }
 
 // Whether the Tama is alive.
@@ -312,6 +348,7 @@ func (this *Tama) GetNextCareTime() time.Time {
 // The egg hatches!
 func (this *Tama) Hatch() {
 	this.HatchedTime = time.Now().Unix()
+	this.LastFeedTime = this.HatchedTime
 
 	// If this egg was a result of two other pets mating, it will already have its starting traits set to the union
 	// of its parents' sets of traits. We must now choose from those pools.

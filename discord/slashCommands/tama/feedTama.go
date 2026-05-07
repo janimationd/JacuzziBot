@@ -3,6 +3,7 @@ package tama
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -57,7 +58,7 @@ var FeedTama = models.SlashCommand{
 				if err != nil {
 					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
 				} else if ownedTamas[id] == nil {
-					errorMessage = "You can only name Tamas that you own."
+					errorMessage = "You can only feed Tamas that you own."
 				}
 			}
 		}
@@ -76,8 +77,16 @@ var FeedTama = models.SlashCommand{
 			errorMessage = "This Tama is still an egg. You can only feed it after it hatches."
 		}
 
+		var timezone *time.Location
+		if errorMessage == "" {
+			timezone, err = time.LoadLocation(user.Timezone)
+			if err != nil {
+				panic(fmt.Sprintf("Existing user timezone is invalid: %s", user.Timezone))
+			}
+		}
+
 		// See if the Tama needs to be fed
-		if errorMessage == "" && tama.Hunger == 0 {
+		if errorMessage == "" && tama.Hunger(timezone) == 0 {
 			errorMessage = "This Tama is already full. You don't need to feed it again until tomorrow (your local time)."
 		}
 
@@ -91,7 +100,7 @@ var FeedTama = models.SlashCommand{
 			} else {
 				// Since now we have deducted points, we need to invert error handling to properly undo the point deduction if
 				// something goes wrong.
-				tama, err = db.FeedTama(serverId, id)
+				tama, err = db.FeedTama(serverId, id, timezone)
 				if err != nil {
 					log.Printf("Failed to feed Tama: %s\n", err.Error())
 					// Refund the cost of the food
@@ -117,9 +126,10 @@ var FeedTama = models.SlashCommand{
 			flags = discordgo.MessageFlagsEphemeral
 		} else {
 			message = fmt.Sprintf("<@%s> has fed %s one food, ", userId, tama.GetNameAndId())
-			if tama.Hunger > 0 {
+			newHunger := tama.Hunger(timezone)
+			if newHunger > 0 {
 				message += fmt.Sprintf("and it's still hungry! Feed it %d more time%s to satisfy its hunger.",
-					tama.Hunger, utils.Plural(tama.Hunger))
+					newHunger, utils.Plural(newHunger))
 			} else {
 				message += "and now it's full!"
 			}

@@ -284,7 +284,7 @@ func careForTama(
 	return tama, result, hatched, nil
 }
 
-func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
+func feedTama(db *bolt.DB, tamaId models.JacuzziId, ownerTimezone *time.Location) (*models.Tama, error) {
 	tama := &models.Tama{}
 
 	err := db.Update(func(tx *bolt.Tx) error {
@@ -308,12 +308,12 @@ func feedTama(db *bolt.DB, tamaId models.JacuzziId) (*models.Tama, error) {
 			return fmt.Errorf("Tama %s is dead, and can no longer be fed.", tama.GetNameAndId())
 		}
 
-		if tama.Hunger == 0 {
+		if tama.Hunger(ownerTimezone) == 0 {
 			return fmt.Errorf("This Tama is already full. You don't need to feed it again until tomorrow (your local time).")
 		}
 
 		// Reduce its hunger
-		tama.Hunger -= 1
+		tama.Feed(ownerTimezone)
 
 		// Save it back to the DB
 		tamaBytes, err = json.Marshal(tama)
@@ -976,7 +976,7 @@ func CareForTama(
 }
 
 // Feed the Tama one food. Assumes you've already sold food to the Tama's owner successfully.
-func FeedTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
+func FeedTama(serverId string, tamaId models.JacuzziId, ownerTimezone *time.Location) (*models.Tama, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
@@ -984,7 +984,7 @@ func FeedTama(serverId string, tamaId models.JacuzziId) (*models.Tama, error) {
 	}
 	defer db.Close()
 
-	return feedTama(db, tamaId)
+	return feedTama(db, tamaId, ownerTimezone)
 }
 
 // Get a set of all Tamas, optionally filtered by:

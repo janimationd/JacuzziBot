@@ -12,15 +12,16 @@ import (
 )
 
 // Get a string describing the Tama's hunger state. String will end with a period.
-func getHungerString(this *models.Tama) string {
+func getHungerString(this *models.Tama, ownerTimezone *time.Location) string {
+	hunger := this.Hunger(ownerTimezone)
 	switch {
-	case this.Hunger == 0:
+	case hunger == 0:
 		return "well fed and doesn't need any more food until tomorrow."
-	case this.Hunger == 1:
+	case hunger == 1:
 		return fmt.Sprintf("hungry. `/feed-tama %d` it today to prevent a mood penalty at midnight.", this.Id)
-	case this.Hunger > 1:
+	case hunger > 1:
 		return fmt.Sprintf("%dx hungry. `/feed-tama %d` it %d times to fill its belly.",
-			this.Hunger, this.Id, this.Hunger)
+			hunger, this.Id, hunger)
 	}
 	return "<unknown>."
 }
@@ -204,7 +205,7 @@ func GetTamaStatus(this *models.Tama, timezone *time.Location, headerLevel strin
 		result += fmt.Sprintf("- It is %s.\n", this.GetMoodString())
 
 		// Hunger
-		result += fmt.Sprintf("- It is %s\n", getHungerString(this))
+		result += fmt.Sprintf("- It is %s\n", getHungerString(this, timezone))
 
 		// Age
 		age := time.Since(time.Unix(this.HatchedTime, 0))
