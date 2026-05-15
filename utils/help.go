@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/janimationd/JacuzziBot/constants"
-	"github.com/janimationd/JacuzziBot/utils"
 )
 
 // Construct a help string
@@ -38,7 +37,7 @@ func Help() string {
 func TamaHelp() string {
 	var result string
 
-	result += "Tamas are a minigame where you buy eggs, care for them until they hatch, and then feed and " +
+	result += "Tama is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
 		"play with them to keep them happy and productive. Your Tama pets will interact with other people's pets " +
 		"and develop relationships with them. If Tamas like each other enough, they may fall in love! " +
 		"If you neglect your pets, **they will die at -10 mood!** " +
@@ -60,7 +59,7 @@ func TamaHelp() string {
 		"Every day that you don't, hunger increases by 1. "+
 		"Each day that a Tama is hungry, it loses mood equal to its hunger. "+
 		"Forgetting to feed your Tamas is the easiest way to kill them! :skull:\n",
-		utils.FormatUIFloat(constants.TamaFeedCost), utils.Plural(constants.TamaFeedCost))
+		FormatUIFloat(constants.TamaFeedCost), Plural(constants.TamaFeedCost))
 	result += "- `/check-tama` - See the current status of one or all of your Tamas.\n"
 	// result += fmt.Sprintf("- `/claim-tama-egg <id>` - Claim an unclaimed Tama egg. "+
 	// 	"Newly hatched eggs can only be claimed by the owners of their parent Tamas for %d day%s.\n",
