@@ -2,11 +2,14 @@ package discord
 
 import (
 	"log"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/janimationd/JacuzziBot/discord/handlers"
+	"github.com/janimationd/JacuzziBot/discord/session"
 	"github.com/janimationd/JacuzziBot/discord/slashCommands"
+	"github.com/janimationd/JacuzziBot/discord/slashCommands/tama"
 	"github.com/janimationd/JacuzziBot/models"
 )
 
@@ -20,27 +23,43 @@ var registeredCommands []*models.SlashCommand
 
 // This is going to be significantly reworked by code changes Araceli is working on, so I'm not worried about making
 // this super scalable right now.
-func registerInteractionCreateHandlers(session *discordgo.Session) {
+func registerInteractionCreateHandlers() {
 	// There are many kinds of interactions, so we subscribe to specific subtypes here.
-	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.Interaction.Type == discordgo.InteractionApplicationCommandAutocomplete {
-			switch i.ApplicationCommandData().Name {
-			case slashCommands.SetTimezone.Command.Name:
-				slashCommands.TimezoneCityAutoComplete(s, i)
-			}
-		} else {
+	session.Handle.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		switch i.Interaction.Type {
+		case discordgo.InteractionApplicationCommand:
 			if h, ok := commands[i.ApplicationCommandData().Name]; ok {
 				log.Printf("Matched incoming interaction to handler: %s.\n", i.ApplicationCommandData().Name)
 				h.Handler(s, i)
 			} else {
 				log.Printf("Couldn't match incoming interaction to a handler: %s.\n", i.ApplicationCommandData().Name)
 			}
+		case discordgo.InteractionApplicationCommandAutocomplete:
+			switch i.ApplicationCommandData().Name {
+			case slashCommands.SetTimezone.Command.Name:
+				slashCommands.TimezoneCityAutoComplete(s, i)
+			}
+		case discordgo.InteractionMessageComponent:
+			customId := i.MessageComponentData().CustomID
+			switch customId {
+			case tama.BuyTamaEggConfirmPurchaseId:
+				tama.HandleBuyTamaEggConfirmPurchase(s, i)
+			case tama.BuyTamaEggCancelPurchaseId:
+				tama.HandleBuyTamaEggCancelPurchase(s, i)
+			// Handle custom IDs that have information appended to them
+			default:
+				if strings.HasPrefix(customId, tama.TransferTamaAcceptTransferId) {
+					tama.HandleTransferTamaAcceptTransfer(s, i)
+				} else if strings.HasPrefix(customId, tama.TransferTamaCancelTransferId) {
+					tama.HandleTransferTamaCancelTransfer(s, i)
+				}
+			}
 		}
 	})
 	log.Println("Registered command handler.")
 }
 
-func registerSlashCommands(session *discordgo.Session) {
+func registerSlashCommands() {
 	// List of slash commands to register
 	add(&commands, &slashCommands.Help)
 	add(&commands, &slashCommands.Points)
@@ -48,6 +67,19 @@ func registerSlashCommands(session *discordgo.Session) {
 	add(&commands, &slashCommands.SetTimezone)
 	add(&commands, &slashCommands.Gamble)
 	add(&commands, &slashCommands.Award)
+	// Tama minigame commands
+	add(&commands, &tama.TamaHelp)
+	add(&commands, &tama.RegisterTamaChannel)
+	add(&commands, &tama.BuyTamaEgg)
+	//add(&commands, &tama.ClaimTamaEgg)
+	add(&commands, &tama.TransferTama)
+	add(&commands, &tama.NameTama)
+	add(&commands, &tama.CheckTama)
+	add(&commands, &tama.CareTama)
+	add(&commands, &tama.FeedTama)
+	add(&commands, &tama.ScheduleTamaPlaytime)
+	add(&commands, &tama.ListTamaPlaytimes)
+	add(&commands, &tama.CancelTamaPlaytime)
 
 	// Build the list of command definitions to sync
 	var commandDefs []*discordgo.ApplicationCommand
@@ -55,10 +87,10 @@ func registerSlashCommands(session *discordgo.Session) {
 		commandDefs = append(commandDefs, slashCommand.Command)
 	}
 
-	// Single API call to sync all commands at once (idempotent in case they're already registered)
-	updatedCmds, err := session.ApplicationCommandBulkOverwrite(
-		session.State.User.ID,
-		session.State.Application.GuildID,
+	// Single API call to sync all commands at once
+	updatedCmds, err := session.Handle.ApplicationCommandBulkOverwrite(
+		session.Handle.State.User.ID,
+		session.Handle.State.Application.GuildID,
 		commandDefs,
 	)
 
@@ -75,13 +107,13 @@ func registerSlashCommands(session *discordgo.Session) {
 		log.Printf("Synced %d commands.\n", len(updatedCmds))
 	}
 
-	registerInteractionCreateHandlers(session)
+	registerInteractionCreateHandlers()
 }
 
-func deregisterSlashCommands(session *discordgo.Session) {
+func deregisterSlashCommands() {
 	for _, slashCommand := range registeredCommands {
 		if slashCommand != nil {
-			err := session.ApplicationCommandDelete(session.State.User.ID, "", slashCommand.Command.ID)
+			err := session.Handle.ApplicationCommandDelete(session.Handle.State.User.ID, "", slashCommand.Command.ID)
 			if err != nil {
 				log.Printf("Couldn't deregister command with name \"%s\" (%s): %s\n",
 					slashCommand.Command.Name, slashCommand.Command.ID, err.Error())
@@ -98,8 +130,6 @@ func deregisterSlashCommands(session *discordgo.Session) {
 	//session.ApplicationCommandDelete(session.State.User.ID, "", "1455810415937458304")
 }
 
-var Session *discordgo.Session
-
 // Setup the Discord API listener and callbacks for handling various incoming events.
 func Open() error {
 	// Load bot config/auth details
@@ -111,25 +141,25 @@ func Open() error {
 	}
 
 	// Create Discord session
-	Session, err = discordgo.New("Bot " + auth.Token)
+	session.Handle, err = discordgo.New("Bot " + auth.Token)
 	if err != nil {
 		log.Println("Error creating Discord session,", err)
 		return err
 	}
 
 	// Register handlers
-	Session.AddHandler(handlers.MessageCreateHandler)
-	Session.AddHandler(handlers.ReactionHandler)
-	Session.AddHandler(handlers.VoiceCallHandler)
+	session.Handle.AddHandler(handlers.MessageCreateHandler)
+	session.Handle.AddHandler(handlers.ReactionHandler)
+	session.Handle.AddHandler(handlers.VoiceCallHandler)
 
 	// Open connection
-	err = Session.Open()
+	err = session.Handle.Open()
 	if err != nil {
 		log.Println("Error opening connection,", err)
 		return err
 	}
 
-	registerSlashCommands(Session)
+	registerSlashCommands()
 
 	log.Println("Discord session opened and waiting for events.")
 	return nil
@@ -137,10 +167,10 @@ func Open() error {
 
 func Close() {
 	// We don't deregister on shutdown anymore, but keeping this code here in case we ever need to.
-	//deregisterSlashCommands(Session)
+	//deregisterSlashCommands()
 
 	// Cleanly close Discord session
-	err := Session.Close()
+	err := session.Handle.Close()
 	if err != nil {
 		log.Println("Failed to close Discord session:", err)
 		return

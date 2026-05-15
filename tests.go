@@ -12,7 +12,7 @@ import (
 func RunTestsIfRequested() {
 	if os.Getenv("RUN_UNIT_TESTS") == "true" {
 		// List all tests here
-		slashCommands.TestTimezones()
+		slashCommands.TimezoneTests()
 		models.JacuzziIdTests()
 	}
 }

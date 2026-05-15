@@ -11,6 +11,7 @@ import (
 	"github.com/janimationd/JacuzziBot/constants"
 	"github.com/janimationd/JacuzziBot/discord"
 	"github.com/janimationd/JacuzziBot/scheduler"
+	"github.com/janimationd/JacuzziBot/scheduler/startup"
 )
 
 // Entry point for the program
@@ -32,6 +33,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 	waitGroup.Go(func() {
+		startup.SetupCrucialEventsAndHandlers()
 		scheduler.Run(ctx)
 	})
 

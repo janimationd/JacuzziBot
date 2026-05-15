@@ -15,7 +15,7 @@ func UpdateVoiceCallState(
 ) {
 	// Remove from the old voice call if there was one.
 	if previousChannelId != "" {
-		_, err := db.ModifyUsers(serverId, previousChannelId, db.Remove, userId)
+		_, err := db.ModifyVoiceCallUsers(serverId, previousChannelId, db.Remove, userId)
 		if err != nil {
 			log.Println("Couldn't remove user from previous voice call:", err)
 		} else {
@@ -25,7 +25,7 @@ func UpdateVoiceCallState(
 
 	// Add into the new voice call if there is one
 	if newChannelId != "" {
-		_, err := db.ModifyUsers(serverId, newChannelId, db.Add, userId)
+		_, err := db.ModifyVoiceCallUsers(serverId, newChannelId, db.Add, userId)
 		if err != nil {
 			log.Println("Couldn't add user to new voice call:", err)
 		} else {

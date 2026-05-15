@@ -38,8 +38,8 @@ var Gamble = models.SlashCommand{
 		userId := interaction.Member.User.ID
 
 		// Extract options/parameters
-		chance := getCommandOption(interaction, "chance").IntValue()
-		wager := getCommandOption(interaction, "wager").FloatValue()
+		chance := utils.GetCommandOption(interaction, "chance").IntValue()
+		wager := utils.GetCommandOption(interaction, "wager").FloatValue()
 
 		// Validations
 

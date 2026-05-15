@@ -8,3 +8,13 @@ const ReactionPoints float64 = 1
 
 // If there are 5 people in the call, this is multipled by 5 and then awarded to each person every minute.
 const VoiceCallPointsPerParticipantPerMinute float64 = 1
+
+// The cost of purchasing a Tama egg.
+const TamaEggPurchaseCost float64 = 100
+
+// How much it costs to feed a Tama
+const TamaFeedCost float64 = 10
+
+// How much Tamas earn hourly when their moods are at certain thresholds.
+const TamaHourlyMinorPointActionReward float64 = 1
+const TamaHourlyMajorPointActionReward float64 = 2

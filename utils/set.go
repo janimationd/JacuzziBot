@@ -2,6 +2,8 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -11,10 +13,15 @@ type Set[T comparable] struct {
 	data map[T]struct{}
 }
 
-// NewSet initializes a new thread-safe set.
+// Initializes a new thread-safe set.
 func NewSet[T comparable]() *Set[T] {
+	return NewSetN[T](0)
+}
+
+// Initializes a new thread-safe set with initial capacity.
+func NewSetN[T comparable](capacity int) *Set[T] {
 	return &Set[T]{
-		data: make(map[T]struct{}),
+		data: make(map[T]struct{}, capacity),
 	}
 }
 
@@ -28,6 +35,18 @@ func (s *Set[T]) Add(obj T) bool {
 	}
 	s.data[obj] = struct{}{}
 	return true
+}
+
+// Merges in all values from the other Set. Returns false if the set wasn't modified (all values were already present).
+func (s *Set[T]) Merge(other *Set[T]) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	modified := false
+	for elem := range other.All() {
+		modified = s.Add(elem) || modified
+	}
+	return modified
 }
 
 // Remove deletes a value. Returns false if the value was not found.
@@ -74,6 +93,23 @@ func (s *Set[T]) Size() int {
 	return len(s.data)
 }
 
+// Choose N distinct options from this Set randomly, returning a new Set of those choices.
+func (s *Set[T]) ChooseRandomNFromSet(n int) *Set[T] {
+	result := NewSet[T]()
+
+	keys := make([]T, 0, s.Size())
+	for k := range s.data {
+		keys = append(keys, k)
+	}
+
+	indeces := ChooseRandomNIntegers(n, s.Size())
+	for index := range indeces.All() {
+		result.Add(keys[index])
+	}
+
+	return result
+}
+
 // Since making the class thread-safe has the tradeoff of hiding the map data in a private variable,
 // we need to write custom JSON ser/de logic. At least the serialized output will look like a normal
 // JSON array now.
@@ -103,4 +139,15 @@ func (s *Set[T]) UnmarshalJSON(data []byte) error {
 		s.data[item] = struct{}{}
 	}
 	return nil
+}
+
+func (s *Set[T]) ToString() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	parts := make([]string, 0, len(s.data))
+	for v := range s.data {
+		parts = append(parts, fmt.Sprintf("%v", v))
+	}
+	return strings.Join(parts, ", ")
 }

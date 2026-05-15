@@ -18,7 +18,7 @@ var perms = int64(discordgo.PermissionManageGuild)
 var Award = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name:        "award",
-		Description: "Award a user some points",
+		Description: "Award a user some points.",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Type:        discordgo.ApplicationCommandOptionUser,
@@ -43,9 +43,9 @@ var Award = models.SlashCommand{
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		// Extract options/parameters
-		recipient := getCommandOption(interaction, "recipient").UserValue(nil)
-		amount := getCommandOption(interaction, "amount").FloatValue()
-		reasonStr := getCommandOption(interaction, "reason").StringValue()
+		recipient := utils.GetCommandOption(interaction, "recipient").UserValue(nil)
+		amount := utils.GetCommandOption(interaction, "amount").FloatValue()
+		reasonStr := utils.GetCommandOption(interaction, "reason").StringValue()
 
 		// We explicitly allow negative amounts so this can be used to undo incorrectly awarded points too.
 

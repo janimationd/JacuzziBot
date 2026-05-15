@@ -1,8 +1,8 @@
-package slashCommands
+package utils
 
 import "github.com/bwmarrin/discordgo"
 
-func getCommandOption(
+func GetCommandOption(
 	interaction *discordgo.InteractionCreate,
 	optionName string,
 ) *discordgo.ApplicationCommandInteractionDataOption {

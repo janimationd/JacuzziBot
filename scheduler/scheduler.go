@@ -7,66 +7,52 @@ import (
 
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
-	"github.com/janimationd/JacuzziBot/scheduler/events"
+	"go.etcd.io/bbolt"
 )
 
 // The registered event handlers.
 var eventRegistry = map[string]models.EventHandler{}
 
+// Register an event handler.
+func RegisterHandler(handlerName string, handler models.EventHandler, overwriteIfPresent bool) {
+	if overwriteIfPresent || eventRegistry[handlerName] == nil {
+		eventRegistry[handlerName] = handler
+	}
+}
+
 // This ensures both that the event is in the database already (indexed by event.ID) and that the handler is
 // registered (indexed by event.Handler). Caller chooses whether to overwrite if values for those keys already exist.
+// Can be called from a re-entrant context, so reuse the tx if provided.
 func RegisterEventAndHandler(
 	event *models.ScheduledEvent,
 	handler models.EventHandler,
 	overwriteIfPresent bool,
+	tx *bbolt.Tx,
 ) error {
-	event.Init()
+	//debug.PrintStack()
 	// Add to the database.
-	_, err := db.ScheduleEvent(event, overwriteIfPresent)
+	_, err := db.ScheduleEvent(event, overwriteIfPresent, tx)
 	if err != nil {
 		return err
 	}
-	if overwriteIfPresent || eventRegistry[event.Handler] == nil {
-		eventRegistry[event.Handler] = handler
-	}
+	RegisterHandler(event.Handler, handler, overwriteIfPresent)
 	return nil
-}
-
-// Puts all crucial events on the schedule at startup. "Crucial" here just means "we know we need it at startup".
-func setupCrucialEvents() {
-	// Create and append all scheduled events here. Examples (though they should each be defined in their own files):
-	//
-	// schedule = append(schedule, &ScheduledEvent{
-	// 	   ID:                  "RecurringEvent",
-	//     Interval:            1 * time.Minute,
-	//     RestartGapTolerance: 5 * time.Minute,
-	//     ...
-	// })
-	//
-	// schedule = append(schedule, &ScheduledEvent{
-	// 	   ID:       "OneOffEvent",
-	// 	   NextTime: time.Now().Add(30 * time.Second),
-	//     ...
-	// })
-
-	RegisterEventAndHandler(&events.VoiceCallPointAwarder, events.VoiceCallPointAwarderHandler, false)
 }
 
 const checkInterval = 1 * time.Second
 
 // Setup and run the schedule.
 func Run(ctx context.Context) {
-	setupCrucialEvents()
-
 	for {
-		loopStartTime := time.Now()
+		// Use a single now calculation and pass it down into the events to maintain zero-gap timing.
+		now := time.Now()
 		select {
 		case <-ctx.Done():
 			log.Println("Done signal received; shutting down scheduler.")
 			return
 		default:
-			// Execute logic directly inside the database transactions to ensure thread safety.
-			db.ForEachScheduledEvent(func(event *models.ScheduledEvent) (db.EventOperationResult, error) {
+			// Execute all logic directly inside a database transaction to ensure thread safety.
+			db.ForEachScheduledEvent(func(event *models.ScheduledEvent, tx *bbolt.Tx) (db.EventOperationResult, error) {
 				handler := eventRegistry[event.Handler]
 				if handler == nil {
 					log.Printf("Event %s had non existent handler %s\n", event.ID, event.Handler)
@@ -74,13 +60,13 @@ func Run(ctx context.Context) {
 				}
 
 				// Run the handler if it's time.
-				modified := event.CheckAndHandle(handler)
+				modified := event.CheckAndHandle(handler, now, tx)
 
 				if event.IsDone() {
 					log.Printf("Event %s is done; deleting it\n", event.ID)
 					return db.DeleteEvent, nil
 				} else if modified {
-					log.Printf("Event %s was modified; updating it\n", event.ID)
+					//log.Printf("Event %s was modified; updating it\n", event.ID)
 					return db.UpdateEvent, nil
 				}
 				return db.DoNothing, nil
@@ -88,7 +74,7 @@ func Run(ctx context.Context) {
 		}
 		// This won't be perfectly accurate, but that's fine.
 		loopEndTime := time.Now()
-		loopDuration := loopEndTime.Sub(loopStartTime)
+		loopDuration := loopEndTime.Sub(now)
 		sleepDuration := max(checkInterval-loopDuration, 0)
 		time.Sleep(sleepDuration)
 	}

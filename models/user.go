@@ -6,8 +6,7 @@ package models
 type User struct {
 	// For Discord, this is a value like "123456789012345678".
 	UserId string
-	// Points are a float behind the scenes, but we should limit precision
-	// when showing to users.
+	// Points are a float behind the scenes, but we should limit precision when showing to users.
 	Points float64
 	// The user's timezone. Stored in the format of "America/Los_Angeles", so something that can be fed into
 	// time.LoadLocation().

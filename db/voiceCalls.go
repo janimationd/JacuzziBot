@@ -63,14 +63,7 @@ func getOrCreateVoiceCall(db *bolt.DB, channelId string) (models.VoiceCall, erro
 	return voiceCall, err
 }
 
-type operation bool
-
-const (
-	Add    operation = true
-	Remove operation = false
-)
-
-func modifyUsers(db *bolt.DB, channelId string, op operation, userId string) (models.VoiceCall, error) {
+func modifyUsers(db *bolt.DB, channelId string, op Operation, userId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
 	// Encapsulate all logic in a transaction to avoid race conditions
@@ -83,21 +76,17 @@ func modifyUsers(db *bolt.DB, channelId string, op operation, userId string) (mo
 		if voiceCallJson == nil {
 			switch op {
 			case Add:
-				{
-					users := utils.NewSet[string]()
-					users.Add(userId)
-					// Voice call is not in database yet, so create a new record for it
-					voiceCall = models.VoiceCall{
-						ChannelId: channelId,
-						Users:     users,
-					}
+				users := utils.NewSet[string]()
+				users.Add(userId)
+				// Voice call is not in database yet, so create a new record for it
+				voiceCall = models.VoiceCall{
+					ChannelId: channelId,
+					Users:     users,
 				}
 			case Remove:
-				{
-					log.Printf("Can't remove user from voice call, no known call in channel %s.\n", channelId)
-					// Swallow the error for now, not sure what to do if we surfaced this.
-					return nil
-				}
+				log.Printf("Can't remove user from voice call, no known call in channel %s.\n", channelId)
+				// Swallow the error for now, not sure what to do if we surfaced this.
+				return nil
 			}
 		} else {
 			// Voice call is in database already, so update its record
@@ -204,7 +193,7 @@ func GetVoiceCall(serverId string, channelId string) (models.VoiceCall, error) {
 	return getOrCreateVoiceCall(db, channelId)
 }
 
-func ModifyUsers(serverId string, channelId string, op operation, userId string) (models.VoiceCall, error) {
+func ModifyVoiceCallUsers(serverId string, channelId string, op Operation, userId string) (models.VoiceCall, error) {
 	var voiceCall models.VoiceCall
 
 	// Create or open a server-specific database file

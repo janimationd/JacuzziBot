@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 )
 
@@ -22,6 +23,11 @@ func JacuzziIdFromBytes(bytes []byte) JacuzziId {
 // will be running on.
 func BytesFromJacuzziId(id JacuzziId) []byte {
 	return binary.LittleEndian.AppendUint64(nil, id)
+}
+
+// Convert a JacuzziId to a string.
+func StringFromJacuzziId(id JacuzziId) string {
+	return fmt.Sprint(id)
 }
 
 // Unit tests to verify the above functions.

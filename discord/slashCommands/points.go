@@ -28,7 +28,7 @@ var Points = models.SlashCommand{
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		// Extract options/parameters
-		user := getCommandOption(interaction, "user")
+		user := utils.GetCommandOption(interaction, "user")
 
 		// Figure out target
 		var target *discordgo.User

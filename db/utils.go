@@ -19,3 +19,11 @@ func getDb(serverId string) (*bolt.DB, error) {
 	}
 	return db, nil
 }
+
+type Operation bool
+
+// The possible operations for a database modification
+const (
+	Add    Operation = true
+	Remove Operation = false
+)
