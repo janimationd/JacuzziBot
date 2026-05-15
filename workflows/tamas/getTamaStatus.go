@@ -155,7 +155,9 @@ func getRelationshipsString(this *models.Tama) string {
 func getNextCareTimeString(this *models.Tama, timezone *time.Location) string {
 	nextCareTime := this.GetNextCareTime()
 	if time.Now().Before(nextCareTime) {
-		return fmt.Sprintf("doesn't need any more care until `%s`", nextCareTime.In(timezone).String())
+		until := time.Until(nextCareTime)
+		return fmt.Sprintf("doesn't need any more care until `%s` (in %s)",
+			nextCareTime.In(timezone).String(), utils.FormatUIDuration(until))
 	} else {
 		result := fmt.Sprintf("can be cared for now by its owner (`/care-tama %d`)", this.Id)
 		if this.Mood == models.TamaMoodLimit {
