@@ -109,7 +109,7 @@ var ClaimTamaEgg = models.SlashCommand{
 			err := tamas.AddUserToMinigameRole(session, serverId, userId)
 			if err != nil {
 				// Don't fail the whole command if this fails, just print it.
-				log.Println("Failed to add user to Tama minigame role:", err)
+				log.Printf("Failed to add user %s to server %s's Tama minigame role: %s\n", userId, serverId, err.Error())
 			}
 		}
 

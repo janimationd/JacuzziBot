@@ -104,7 +104,11 @@ func HandleBuyTamaEggConfirmPurchase(session *discordgo.Session, interaction *di
 		responseMessage += fmt.Sprintf("- Make sure to take care of it using `/care-tama %d`.\n", tama.Id)
 		responseMessage += fmt.Sprintf("- You can check on the status of your egg with `/check-tama %d`.", tama.Id)
 		// Add the user to the minigame role for later ease of @-ing them.
-		tamas.AddUserToMinigameRole(session, serverId, userId)
+		err = tamas.AddUserToMinigameRole(session, serverId, userId)
+		if err != nil {
+			// Don't fail the whole command if this fails, just print it.
+			log.Printf("Failed to add user %s to server %s's Tama minigame role: %s\n", userId, serverId, err.Error())
+		}
 	} else {
 		responseMessage = fmt.Sprintf("Couldn't complete egg purchase: %s", err.Error())
 	}
