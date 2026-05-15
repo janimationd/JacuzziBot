@@ -827,6 +827,8 @@ func tamaReactToDeath(
 		Tama: &models.Tama{},
 	}
 
+	log.Printf("Tama #%d is reacting to Tama #%d's death.\n", tamaId, deadTamaId)
+
 	err := db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(tamaBucketName))
 		if bucket == nil {
@@ -845,16 +847,13 @@ func tamaReactToDeath(
 		// Modify the Tama's mood based on its attitude towards the dead Tama.
 		relationshipScore := result.Tama.Relationships[deadTamaId]
 		moodDelta := models.Mood(relationshipScore * -2)
-		log.Printf("tamaReactToDeath: relationshipScore=%d, moodDelta=%d", relationshipScore, moodDelta)
 
 		// Don't allow outright death due to this, cap at one above death.
 		moodDiffToDeath := -models.TamaMoodLimit - result.Tama.Mood
 		moodDelta = max(moodDelta, moodDiffToDeath+1)
-		log.Printf("tamaReactToDeath: moodDiffToDeath=%d, moodDelta=%d", moodDiffToDeath, moodDelta)
 
 		modifyMoodResult := result.Tama.ModifyMood(moodDelta)
 		result.FinalMoodDelta = modifyMoodResult.FinalDelta
-		log.Printf("tamaReactToDeath: FinalMoodDelta=%d", result.FinalMoodDelta)
 
 		tamaBytes, err = json.Marshal(result.Tama)
 		if err != nil {
