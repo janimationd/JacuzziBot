@@ -44,13 +44,14 @@ const checkInterval = 1 * time.Second
 // Setup and run the schedule.
 func Run(ctx context.Context) {
 	for {
-		loopStartTime := time.Now()
+		// Use a single now calculation and pass it down into the events to maintain zero-gap timing.
+		now := time.Now()
 		select {
 		case <-ctx.Done():
 			log.Println("Done signal received; shutting down scheduler.")
 			return
 		default:
-			// Execute logic directly inside the database transactions to ensure thread safety.
+			// Execute all logic directly inside a database transaction to ensure thread safety.
 			db.ForEachScheduledEvent(func(event *models.ScheduledEvent, tx *bbolt.Tx) (db.EventOperationResult, error) {
 				handler := eventRegistry[event.Handler]
 				if handler == nil {
@@ -59,13 +60,13 @@ func Run(ctx context.Context) {
 				}
 
 				// Run the handler if it's time.
-				modified := event.CheckAndHandle(handler, tx)
+				modified := event.CheckAndHandle(handler, now, tx)
 
 				if event.IsDone() {
 					log.Printf("Event %s is done; deleting it\n", event.ID)
 					return db.DeleteEvent, nil
 				} else if modified {
-					log.Printf("Event %s was modified; updating it\n", event.ID)
+					//log.Printf("Event %s was modified; updating it\n", event.ID)
 					return db.UpdateEvent, nil
 				}
 				return db.DoNothing, nil
@@ -73,7 +74,7 @@ func Run(ctx context.Context) {
 		}
 		// This won't be perfectly accurate, but that's fine.
 		loopEndTime := time.Now()
-		loopDuration := loopEndTime.Sub(loopStartTime)
+		loopDuration := loopEndTime.Sub(now)
 		sleepDuration := max(checkInterval-loopDuration, 0)
 		time.Sleep(sleepDuration)
 	}

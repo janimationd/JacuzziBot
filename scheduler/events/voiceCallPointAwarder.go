@@ -19,7 +19,7 @@ var VoiceCallPointAwarder = models.ScheduledEvent{
 	RestartGapTolerance: 5 * time.Minute,
 }
 
-func VoiceCallPointAwarderHandler(event *models.ScheduledEvent, _ *bbolt.Tx) bool {
+func VoiceCallPointAwarderHandler(event *models.ScheduledEvent, _ time.Time, _ *bbolt.Tx) bool {
 	if session.Handle == nil {
 		log.Println("Discord session is nil, not checking voice calls.")
 		return false

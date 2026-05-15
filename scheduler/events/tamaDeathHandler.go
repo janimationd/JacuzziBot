@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/discord/session"
@@ -12,7 +13,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func TamaDeathHandler(event *models.ScheduledEvent, tx *bbolt.Tx) bool {
+func TamaDeathHandler(event *models.ScheduledEvent, _ time.Time, tx *bbolt.Tx) bool {
 	var payload models.TamaDeathPayload
 
 	if session.Handle == nil {
@@ -53,7 +54,7 @@ func TamaDeathHandler(event *models.ScheduledEvent, tx *bbolt.Tx) bool {
 			continue
 		}
 
-		result, err := db.TamaReactToDeath(serverId, tamaId, deadTamaId, tx)
+		result, err := db.TamaReactToDeath(serverId, tamaId, deadTamaId)
 		if err != nil {
 			log.Printf("Couldn't handle Tama %s's reaction to %s's death: %s\n",
 				tama.GetNameAndId(), deadTama.GetNameAndId(), err.Error())

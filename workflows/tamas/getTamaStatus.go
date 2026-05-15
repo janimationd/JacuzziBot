@@ -92,9 +92,6 @@ func getNegativeTraitsString(this *models.Tama) string {
 		switch trait {
 		case models.Bully:
 			result += "Bully: increased chance to pick on other Tamas.\n"
-		case models.Jealous:
-			result += "Jealous: whenever a pet that this Tama is courting or in love with's attitude " +
-				"towards another Tama improves, 33% chance for attitude towards both the other Tamas to worsen by 1.\n"
 		case models.Annoying:
 			result += "Annoying: 33% chance that playing with another Tama won't actually improve its attitude " +
 				"towards us.\n"

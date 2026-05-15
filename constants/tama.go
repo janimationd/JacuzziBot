@@ -10,11 +10,11 @@ const OnlyParentOwnersCanClaimSeconds int64 = OnlyParentOwnersCanClaimDays * 24 
 // Cannot name a Tama with more characters than this.
 const MaxTamaNameLength = 30
 
-// After the egg has been cared for for this many days, it then hatches.
+// After the egg has been cared for this many times, it hatches.
 const EggCareHatchThreshold uint8 = 3
 
 // The cooldown period for caring for an egg
-const EggCareCooldown = 1 * time.Second
+const EggCareCooldown = 24 * time.Hour
 
 // The cooldown period for caring for a hatched Tama
-const TamaCareCooldown = 1 * time.Second
+const TamaCareCooldown = 8 * time.Hour

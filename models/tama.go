@@ -28,7 +28,6 @@ const (
 
 const (
 	Bully NegativeTrait = iota
-	Jealous
 	Annoying
 	// New ones should go above this
 	NegativeTraitMax

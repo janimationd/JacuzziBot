@@ -23,6 +23,7 @@ func SetupCrucialEventsAndHandlers() {
 	// })
 	scheduler.RegisterEventAndHandler(&events.VoiceCallPointAwarder, events.VoiceCallPointAwarderHandler, true, nil)
 	scheduler.RegisterEventAndHandler(&events.TamaMoodEarnsPointsAwarder, events.TamaMoodEarnsPointsHandler, true, nil)
+	scheduler.RegisterEventAndHandler(&events.TamaHungerChecker, events.TamaHungerHandler, true, nil)
 
 	// Register all handlers for events that could be stored in the database already or could be scheduled later.
 	scheduler.RegisterHandler("TamaPlaytimeHandler", events.TamaPlaytimeHandler, true)

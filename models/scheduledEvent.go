@@ -24,18 +24,34 @@ type ScheduledEvent struct {
 	// Interval boundary. In practice we don't expect long bot outages for the actual bot, but this happens often with
 	// our personal bot instances used for testing and local development.
 	RestartGapTolerance time.Duration
+	// If the implementation of the event needs to use LastCheckTime for its logic, then set this to true. Otherwise
+	// should be false. The reason we don't assume true for every event is this causes a write back to the DB after
+	// every per-second check, so it's a performance optimization.
+	UsesLastCheckTime bool
+	// If UsesLastCheckTime is true, this is the last time the event was checked to see if it should execute. Only some
+	// event types will need to use this, such as events that check poll for specific, asynchronous, non-consumable
+	// events transpiring (e.g. wall clock passing a certain time). This isn't great and could probably be improved.
+	// This is managed for you, so don't touch this.
+	LastCheckTime time.Time
 	// The handler name for the event.
 	Handler string
 	// A data payload to be stored with the event, containing the parameters to the Handler.
 	Payload json.RawMessage
 }
 
-// A function to handle an event when it is time for the event to "happen". You are allowed to edit the event as you
-// see fit, but your handler MUST return true if you edit it so we know to update the event in the database. You DO
-// NOT need to do any timing logic in your function unless you're doing something non-standard. NextTime is advanced
-// by Interval for you after your handler is called. DO NOT initiate any new transaction in the events DB WITHOUT
-// passing tx down and reusing it, or else the program will deadlock.
-type EventHandler func(event *ScheduledEvent, tx *bbolt.Tx) bool
+// A function to handle an event when it is time for the event to "happen".
+//
+// CONTRACT RULES:
+//  1. You are allowed to edit the event as you see fit, but your handler MUST return true if you edit it so we know to
+//     update the event in the database.
+//  2. You don't need to manually modify timing fields on the event unless you're doing something non-standard.
+//  3. event.NextTime is advanced by event.Interval by calling code after your handler is called.
+//  4. The "now" param is a time you should use as "the time this event is executing at" in place of any additional
+//     time.Now() calls. This is the same time we use to determine if your event needs to be executed, so this
+//     maintains zero-gap timing within your logic between executions of the event.
+//  5. DO NOT initiate any new transactions in the events DB WITHOUT passing tx down and reusing it, or else the
+//     program WILL deadlock.
+type EventHandler func(event *ScheduledEvent, now time.Time, tx *bbolt.Tx) bool
 
 // Set NextTime to be the next wall clock-aligned Interval boundary.
 func (event *ScheduledEvent) Init() {
@@ -79,13 +95,13 @@ func (event *ScheduledEvent) updateNextTime() bool {
 
 // Check if it's time for the event to happen, and then handle it and advance NextTime if yes. Returns whether or not
 // the event was modified.
-func (event *ScheduledEvent) CheckAndHandle(handler EventHandler, tx *bbolt.Tx) bool {
+func (event *ScheduledEvent) CheckAndHandle(handler EventHandler, now time.Time, tx *bbolt.Tx) bool {
+	modified := false
+
 	// If NextTime is more than RestartGapTolerance in the past, then the bot has been shut down for a while and we
 	// shouldn't iterate through every Interval since it last ran to catch back up. Instead skip ahead to what NextTime
 	// should next be.
 	shouldCheckRestartGapTolerance := event.Interval != 0 && event.RestartGapTolerance != 0
-	// log.Printf("> Interval = %s, RestartGapTolerance = %s, NextTime = [%s], TimeUntil = %s\n",
-	// 	event.Interval.String(), event.RestartGapTolerance.String(), event.NextTime, time.Until(event.NextTime).String())
 	if shouldCheckRestartGapTolerance && time.Until(event.NextTime) <= -event.RestartGapTolerance {
 		originalNextTime := event.NextTime
 		event.NextTime = time.Time{}
@@ -94,16 +110,17 @@ func (event *ScheduledEvent) CheckAndHandle(handler EventHandler, tx *bbolt.Tx) 
 		log.Printf("Event %s's NextTime was [%s], which is too far in the past. "+
 			"Advancing NextTime to [%s] and skipping the Intervals we missed.\n",
 			event.ID, originalNextTime, event.NextTime)
-		return true
-	}
-
-	now := time.Now()
-	// If it's time to execute the event
-	if now.Equal(event.NextTime) || now.After(event.NextTime) {
-		modified := handler(event, tx)
-		// Order of operands is important: always execute updateNextTime().
+		modified = true
+	} else if !now.Before(event.NextTime) {
+		// If it's time to execute the event...
+		// Order of operands here is important: always execute the commands even if modified is already true.
+		modified = handler(event, now, tx) || modified
 		modified = event.updateNextTime() || modified
-		return modified
 	}
-	return false
+	// See if LastCheckTime needs to be updated
+	if event.UsesLastCheckTime {
+		event.LastCheckTime = now
+		modified = true
+	}
+	return modified
 }

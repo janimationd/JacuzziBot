@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand/v2"
 	"slices"
+	"time"
 
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/discord/session"
@@ -80,7 +81,7 @@ func interact(
 	return result.Summary, nil
 }
 
-func TamaPlaytimeHandler(event *models.ScheduledEvent, tx *bbolt.Tx) bool {
+func TamaPlaytimeHandler(event *models.ScheduledEvent, _ time.Time, tx *bbolt.Tx) bool {
 	log.Printf("Event %s executed.\n", event.ID)
 
 	if session.Handle == nil {

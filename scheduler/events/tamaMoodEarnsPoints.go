@@ -23,7 +23,7 @@ var TamaMoodEarnsPointsAwarder = models.ScheduledEvent{
 	RestartGapTolerance: 6 * time.Hour,
 }
 
-func TamaMoodEarnsPointsHandler(event *models.ScheduledEvent, _ *bbolt.Tx) bool {
+func TamaMoodEarnsPointsHandler(event *models.ScheduledEvent, _ time.Time, _ *bbolt.Tx) bool {
 	log.Printf("Event %s executed.\n", event.ID)
 
 	if session.Handle == nil {

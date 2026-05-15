@@ -876,6 +876,81 @@ func tamaReactToDeath(
 	return result, nil
 }
 
+type TamaHungerReactionResult struct {
+	// The final state of the Tama after it reacts to its hunger.
+	Tama *models.Tama
+	// The amount by which the Tama's mood changed.
+	FinalMoodDelta models.Mood
+	// Whether the Tama died as a result of this reaction.
+	JustDied bool
+	// A summary string to append to the final result message.
+	Summary string
+}
+
+func tamaReactToHunger(
+	db *bbolt.DB,
+	tamaId models.JacuzziId,
+	ownerTimezone *time.Location,
+) (TamaHungerReactionResult, error) {
+	result := TamaHungerReactionResult{
+		Tama: &models.Tama{},
+	}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Tamas bucket didn't exist when trying to react to hunger")
+		}
+
+		tamaBytes := bucket.Get(models.BytesFromJacuzziId(tamaId))
+		if tamaBytes == nil {
+			return fmt.Errorf("Tama #%d doesn't exist in DB", tamaId)
+		}
+
+		err := json.Unmarshal(tamaBytes, result.Tama)
+		if err != nil {
+			return err
+		}
+
+		hunger := result.Tama.Hunger(ownerTimezone)
+		// Skip Tamas that aren't hungry
+		if hunger <= 0 {
+			return nil
+		}
+
+		desiredMoodDelta := -hunger
+		modifyMoodResult := result.Tama.ModifyMood(models.Mood(desiredMoodDelta))
+		result.JustDied = modifyMoodResult.JustDied
+		result.FinalMoodDelta = modifyMoodResult.FinalDelta
+		result.Summary += fmt.Sprintf("\n- Tama %s was x%d hungry at owner's local midnight and ",
+			result.Tama.GetNameAndId(), hunger)
+		if result.JustDied {
+			result.Summary += "**died from hunger**! :skull:"
+		} else {
+			result.Summary += fmt.Sprintf("lost %d mood! (now at %s)", result.FinalMoodDelta, result.Tama.GetMoodString())
+		}
+
+		tamaBytes, err = json.Marshal(result.Tama)
+		if err != nil {
+			return fmt.Errorf("Couldn't marshall Tama back to JSON: %w", err)
+		}
+
+		err = bucket.Put(models.BytesFromJacuzziId(tamaId), tamaBytes)
+		if err != nil {
+			return fmt.Errorf("Couldn't store Tama back to DB: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("Couldn't react to Tama hunger: %s", err.Error())
+		return TamaHungerReactionResult{}, err
+	}
+
+	return result, nil
+}
+
 // Public methods
 
 func RegisterTamaChannel(serverId string, channelId string) error {
@@ -1079,12 +1154,10 @@ func TamaInteract(
 	return tamaInteract(db, instigatorId, targetId, indent)
 }
 
-// This can be used in re-entrant contexts, so use the existing tx if it is present.
 func TamaReactToDeath(
 	serverId string,
 	tamaId models.JacuzziId,
 	deadTamaId models.JacuzziId,
-	tx *bbolt.Tx,
 ) (TamaDeathReactionResult, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -1094,4 +1167,19 @@ func TamaReactToDeath(
 	defer db.Close()
 
 	return tamaReactToDeath(db, tamaId, deadTamaId)
+}
+
+func TamaReactToHunger(
+	serverId string,
+	tamaId models.JacuzziId,
+	ownerTimezone *time.Location,
+) (TamaHungerReactionResult, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return TamaHungerReactionResult{}, err
+	}
+	defer db.Close()
+
+	return tamaReactToHunger(db, tamaId, ownerTimezone)
 }
