@@ -10,6 +10,10 @@ const OnlyParentOwnersCanClaimSeconds int64 = OnlyParentOwnersCanClaimDays * 24 
 // Cannot name a Tama with more characters than this.
 const MaxTamaNameLength = 30
 
+// Characters that cannot be used in a Tama name.
+const TamaNameDisallowedCharacters = "*_~#:\\[\\](){}`<>@\\/\\\\\\n\\r"
+const TamaNameDisallowedCharactersForPrinting = "*_~#:[](){}`<>@/\\"
+
 // After the egg has been cared for this many times, it hatches.
 const EggCareHatchThreshold uint8 = 3
 

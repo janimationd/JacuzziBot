@@ -2,6 +2,7 @@ package tama
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"unicode/utf8"
 
@@ -49,7 +50,10 @@ var NameTama = models.SlashCommand{
 		if err != nil {
 			errorMessage = "Couldn't load user details" + constants.ErrorReportMessageSuffix
 		} else {
-			if intId <= int64(models.NoId) {
+			invalidName, err := regexp.MatchString(fmt.Sprintf(".*[%s].*", constants.TamaNameDisallowedCharacters), newName)
+			if err != nil {
+				errorMessage = fmt.Sprintf("Couldn't validate new name string: %s", err.Error())
+			} else if intId <= int64(models.NoId) {
 				errorMessage = fmt.Sprintf("Tama IDs must be greater than %d.", models.NoId)
 			} else if user.Timezone == "" {
 				errorMessage = "You must run `/set-timezone` before running this command."
@@ -57,6 +61,9 @@ var NameTama = models.SlashCommand{
 				errorMessage = "No channel is registered as a Tama minigame yet (talk to an admin)."
 			} else if registeredChannelId != interaction.ChannelID {
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
+			} else if invalidName {
+				errorMessage = fmt.Sprintf("Tama names must not contain any forbidden characters (``%s``) or newlines.",
+					constants.TamaNameDisallowedCharactersForPrinting)
 			} else if utf8.RuneCountInString(newName) > constants.MaxTamaNameLength {
 				errorMessage = fmt.Sprintf("Tama names cannot exceed %d characters. Your name uses %d.",
 					constants.MaxTamaNameLength, utf8.RuneCountInString(newName))
