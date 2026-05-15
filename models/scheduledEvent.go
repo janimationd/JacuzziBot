@@ -89,7 +89,7 @@ func (event *ScheduledEvent) updateNextTime() bool {
 		return true
 	}
 	event.NextTime = event.NextTime.Add(event.Interval)
-	log.Printf("ScheduledEvent \"%s\" advanced to NextTime = %s\n", event.ID, event.NextTime.String())
+	//log.Printf("ScheduledEvent \"%s\" advanced to NextTime = %s\n", event.ID, event.NextTime.String())
 	return true
 }
 

@@ -368,6 +368,16 @@ func (this *Tama) Hatch() {
 	}
 }
 
+func (this *Tama) GetHourlyPointAward() float64 {
+	if this.Mood >= TamaMajorPointActionMoodThreshold {
+		return constants.TamaHourlyMajorPointActionReward
+	} else if this.Mood >= TamaMinorPointActionMoodThreshold {
+		return constants.TamaHourlyMinorPointActionReward
+	} else {
+		return 0
+	}
+}
+
 // Get a string describing the Tama's mood.
 func (this *Tama) GetMoodString() string {
 	moodDesc := ""

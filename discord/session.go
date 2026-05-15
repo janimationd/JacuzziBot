@@ -71,7 +71,7 @@ func registerSlashCommands() {
 	add(&commands, &tama.TamaHelp)
 	add(&commands, &tama.RegisterTamaChannel)
 	add(&commands, &tama.BuyTamaEgg)
-	add(&commands, &tama.ClaimTamaEgg)
+	//add(&commands, &tama.ClaimTamaEgg)
 	add(&commands, &tama.TransferTama)
 	add(&commands, &tama.NameTama)
 	add(&commands, &tama.CheckTama)

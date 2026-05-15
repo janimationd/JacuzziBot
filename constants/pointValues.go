@@ -16,5 +16,5 @@ const TamaEggPurchaseCost float64 = 100
 const TamaFeedCost float64 = 10
 
 // How much Tamas earn hourly when their moods are at certain thresholds.
-const TamaMinorPointActionReward float64 = 1
-const TamaMajorPointActionReward float64 = 2
+const TamaHourlyMinorPointActionReward float64 = 1
+const TamaHourlyMajorPointActionReward float64 = 2

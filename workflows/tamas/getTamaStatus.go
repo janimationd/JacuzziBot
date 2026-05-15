@@ -201,7 +201,14 @@ func GetTamaStatus(this *models.Tama, timezone *time.Location, headerLevel strin
 		result += fmt.Sprintf("- It is %s.\n", getOwnerString(this))
 
 		// Mood (includes whether it's alive or dead)
-		result += fmt.Sprintf("- It is %s.\n", this.GetMoodString())
+		result += fmt.Sprintf("- It is %s", this.GetMoodString())
+		hourlyAward := this.GetHourlyPointAward()
+		if hourlyAward > 0 {
+			result += fmt.Sprintf(", and is earning you %s point%s per hour because of it!\n",
+				utils.FormatUIFloat(hourlyAward), utils.Plural(hourlyAward))
+		} else {
+			result += ".\n"
+		}
 
 		// Hunger
 		result += fmt.Sprintf("- It is %s\n", getHungerString(this, timezone))
