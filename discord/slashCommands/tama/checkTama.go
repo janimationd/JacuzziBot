@@ -1,7 +1,9 @@
 package tama
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -91,7 +93,17 @@ var CheckTama = models.SlashCommand{
 				if err != nil {
 					errorMessage = fmt.Sprintf("Couldn't fetch all your owned Tamas: %s", err.Error())
 				} else {
+					// Sort tamas by ID
+					sortedTamas := make([]*models.Tama, len(ownedTamas))
+					i := 0
 					for _, tama := range ownedTamas {
+						sortedTamas[i] = tama
+						i++
+					}
+					slices.SortFunc(sortedTamas, func(a, b *models.Tama) int {
+						return cmp.Compare(a.Id, b.Id)
+					})
+					for _, tama := range sortedTamas {
 						if tama.IsAlive() { // Skip any dead Tamas
 							message += tamas.GetTamaStatus(tama, timezone, "##")
 						}

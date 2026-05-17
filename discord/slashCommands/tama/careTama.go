@@ -92,24 +92,35 @@ var CareTama = models.SlashCommand{
 				},
 			})
 		} else {
+			nextTime := fmt.Sprintf("- You'll be able to care for it again at `%s` (in %s).",
+				tama.GetNextCareTime().In(userTimezone).String(),
+				utils.FormatUIDuration(time.Until(tama.GetNextCareTime())))
 			var message string
 			var flags discordgo.MessageFlags
 			if hatched {
-				message = fmt.Sprintf("Tama #%d has hatched! :tada: Congrats to <@%s>!\n\n", id, userId)
-				message += fmt.Sprintf("You can now name it with `/name-tama %d` if you'd like.\n", id)
-				message += tamas.GetTamaStatus(tama, userTimezone, "#")
+				message = fmt.Sprintf("# Tama #%d has hatched! :tada::hatching_chick::heart:\n"+
+					"- <@%s> can now name it with `/name-tama %d`.\n"+
+					"## Tama details\n",
+					id, userId, id)
+				message += tamas.GetTamaStatus(tama, userTimezone, "")
 			} else if tama.IsEgg() {
 				careCountBeforeHatching := constants.EggCareHatchThreshold - tama.EggCareCount
-				message = fmt.Sprintf("You have cared for egg #%d. Only %d days left before it hatches!",
+				message = fmt.Sprintf("You have cared for egg #%d!\n"+
+					nextTime+"\n"+
+					"- You need to care for it %d more times before it hatches!",
 					id, careCountBeforeHatching)
 				flags = discordgo.MessageFlagsEphemeral
 			} else if modifyMoodResult.FinalDelta > 0 {
-				message = fmt.Sprintf("You have played with Tama %s, improving its mood, and it's now %s!",
+				message = fmt.Sprintf("You have played with Tama %s!\n"+
+					"- You've improved its mood, and it's now %s.\n"+
+					nextTime,
 					tama.GetNameAndId(), tama.GetMoodString())
 				flags = discordgo.MessageFlagsEphemeral
 			} else {
-				message = fmt.Sprintf("You have played with Tama %s, though its mood is already at maximum (+%d).",
-					tama.GetNameAndId(), models.TamaMoodLimit)
+				message = fmt.Sprintf("You have played with Tama %s!\n"+
+					"- Its mood is already at maximum (%s).\n"+
+					nextTime,
+					tama.GetNameAndId(), tama.GetMoodString())
 				flags = discordgo.MessageFlagsEphemeral
 			}
 			// Respond with feedback message

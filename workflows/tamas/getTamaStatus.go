@@ -180,21 +180,26 @@ func getOwnerString(this *models.Tama) string {
 func GetTamaStatus(this *models.Tama, timezone *time.Location, headerLevel string) string {
 	result := ""
 	if this.IsEgg() {
-		careCountBeforeHatching := constants.EggCareHatchThreshold - this.EggCareCount
-		result = fmt.Sprintf("%s Egg #%d\n", headerLevel, this.Id)
+		// Header: ID
+		if headerLevel != "" {
+			result += fmt.Sprintf("%s Egg #%d\n", headerLevel, this.Id)
+		}
 
 		// Owner
 		result += fmt.Sprintf("- It is %s.\n", getOwnerString(this))
 
 		// Care count
+		careCountBeforeHatching := constants.EggCareHatchThreshold - this.EggCareCount
 		result += fmt.Sprintf("- It has been cared for %d times (needs %d more to hatch).\n",
 			this.EggCareCount, careCountBeforeHatching)
 	} else {
 		// Header: Name and ID
-		if this.Name != "" {
-			result = fmt.Sprintf("%s %s\n", headerLevel, this.GetNameAndId())
-		} else {
-			result = fmt.Sprintf("%s Tama #%d\n", headerLevel, this.Id)
+		if headerLevel != "" {
+			if this.Name != "" {
+				result += fmt.Sprintf("%s %s\n", headerLevel, this.GetNameAndId())
+			} else {
+				result += fmt.Sprintf("%s Tama #%d\n", headerLevel, this.Id)
+			}
 		}
 
 		// Owner

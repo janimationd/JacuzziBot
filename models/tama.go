@@ -340,7 +340,6 @@ func (this *Tama) GetNextCareTime() time.Time {
 		cooldown = constants.TamaCareCooldown
 	}
 
-	// If the cooldown hasn't yet expired
 	return time.Unix(this.LastCareTime, 0).Add(cooldown)
 }
 

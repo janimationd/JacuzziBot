@@ -96,8 +96,11 @@ func HandleBuyTamaEggConfirmPurchase(session *discordgo.Session, interaction *di
 	var channelMessage string
 	var responseMessage string
 	if err == nil {
-		channelMessage += fmt.Sprintf(":egg: <@%s> has bought a Tama egg (ID #%d) for %s point%s!\n\n", userId,
-			tama.Id, utils.FormatUIFloat(constants.TamaEggPurchaseCost), utils.Plural(constants.TamaEggPurchaseCost))
+		channelMessage += fmt.Sprintf("# <@%s> has bought a Tama egg! :moneybag::arrow_right::egg:\n"+
+			"- Egg ID is #%d.\n"+
+			"- Purchased for %s point%s *(%s remaining)*",
+			userId, tama.Id, utils.FormatUIFloat(constants.TamaEggPurchaseCost),
+			utils.Plural(constants.TamaEggPurchaseCost), utils.FormatUIFloat(user.Points))
 
 		responseMessage += fmt.Sprintf("**Success!** You now have %s point%s.\n",
 			utils.FormatUIFloat(user.Points), utils.Plural(user.Points))

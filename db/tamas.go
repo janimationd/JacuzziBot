@@ -247,8 +247,8 @@ func careForTama(
 
 		nextCareTime := tama.GetNextCareTime()
 		if time.Now().Before(nextCareTime) {
-			return fmt.Errorf("This action is still cooling down.\n\nYou will be able to perform it again at `%s`.",
-				nextCareTime.In(userTimezone).String())
+			return fmt.Errorf("This action is still cooling down.\n\nYou will be able to perform it again at `%s` (in %s).",
+				nextCareTime.In(userTimezone).String(), utils.FormatUIDuration(time.Until(nextCareTime)))
 		}
 
 		tama.LastCareTime = time.Now().Unix()
@@ -1061,7 +1061,7 @@ func FeedTama(serverId string, tamaId models.JacuzziId, ownerTimezone *time.Loca
 	return feedTama(db, tamaId, ownerTimezone)
 }
 
-// Get a set of all Tamas, optionally filtered by:
+// Get a map of all Tamas, optionally filtered by:
 // - userId: if not "", filter to those owned by the given user
 // - aliveOnly: if true, only return alive Tamas
 // - hatchedOnly: if true, only return hatched Tamas (not eggs)
