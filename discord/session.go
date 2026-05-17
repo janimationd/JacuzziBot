@@ -158,6 +158,10 @@ func Open() error {
 		log.Println("Error opening connection,", err)
 		return err
 	}
+	err = session.Handle.UpdateCustomStatus("♨️ The water's fine")
+	if err != nil {
+		log.Printf("Error updating bot's status: %s\n", err.Error())
+	}
 
 	registerSlashCommands()
 
