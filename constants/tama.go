@@ -8,7 +8,7 @@ const OnlyParentOwnersCanClaimDays = 3
 const OnlyParentOwnersCanClaimSeconds int64 = OnlyParentOwnersCanClaimDays * 24 * 60 * 60
 
 // Cannot name a Tama with more characters than this.
-const MaxTamaNameLength = 30
+const MaxTamaNameLength = 64
 
 // Characters that cannot be used in a Tama name.
 const TamaNameDisallowedCharacters = "*_~#:\\[\\](){}`<>@\\/\\\\\\n\\r"
