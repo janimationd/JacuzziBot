@@ -52,7 +52,7 @@ func TamaMoodEarnsPointsHandler(event *models.ScheduledEvent, _ time.Time, _ *bb
 		}
 
 		if !anyPointEarners {
-			log.Println("No Tamas are happy enough to earn points right now.")
+			//log.Println("No Tamas are happy enough to earn points right now.")
 			return false
 		}
 

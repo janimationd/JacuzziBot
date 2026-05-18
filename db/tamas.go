@@ -912,8 +912,12 @@ func tamaReactToHunger(
 		}
 
 		hunger := result.Tama.Hunger(ownerTimezone)
+		// We assume this is being called shortly after the calendar day threshold for the Tama's owner. That means the
+		// Tama's hunger score will be 1 more than we want to penalize it for, so we use whatever its hunger would have
+		// been right before midnight for calculations instead.
+		hunger = max(hunger-1, 0)
 		// Skip Tamas that aren't hungry
-		if hunger <= 0 {
+		if hunger == 0 {
 			return nil
 		}
 
@@ -1168,6 +1172,9 @@ func TamaReactToDeath(
 	return tamaReactToDeath(db, tamaId, deadTamaId)
 }
 
+// We assume this is being called shortly after the calendar day threshold for the Tama's owner. That means the Tama's
+// hunger score will be 1 more than we want to penalize it for, so we use whatever its hunger would have been right
+// before midnight for calculations instead.
 func TamaReactToHunger(
 	serverId string,
 	tamaId models.JacuzziId,
