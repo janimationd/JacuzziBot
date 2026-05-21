@@ -120,12 +120,10 @@ var FeedTama = models.SlashCommand{
 
 		// Figure out response message
 		var message string
-		var flags discordgo.MessageFlags
 		if errorMessage != "" {
 			message = errorMessage
-			flags = discordgo.MessageFlagsEphemeral
 		} else {
-			message = fmt.Sprintf("<@%s> has fed %s one food, ", userId, tama.GetNameAndId())
+			message = fmt.Sprintf("You have fed %s one food, ", tama.GetNameAndId())
 			newHunger := tama.Hunger(timezone)
 			if newHunger > 0 {
 				message += fmt.Sprintf("and it's still hungry! Feed it %d more time%s to satisfy its hunger.",
@@ -133,7 +131,7 @@ var FeedTama = models.SlashCommand{
 			} else {
 				message += "and now it's full!"
 			}
-			message += fmt.Sprintf("\n\nThe food cost %s point%s, so they now have %s point%s.",
+			message += fmt.Sprintf("\n\nThe food cost %s point%s, so you now have %s point%s.",
 				utils.FormatUIFloat(cost), utils.Plural(cost),
 				utils.FormatUIFloat(user.Points), utils.Plural(user.Points))
 		}
@@ -143,7 +141,7 @@ var FeedTama = models.SlashCommand{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: message,
-				Flags:   flags,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 	},
