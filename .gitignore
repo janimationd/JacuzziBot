@@ -2,5 +2,7 @@
 .vscode
 **/auth.json
 *.db
+*.bak
 *.exe
 .env
+*.bak

@@ -111,6 +111,10 @@ func restoreBucketFromFile(db *bolt.DB, bucketName string, filePath string) (boo
 const backupDir = dbPath + "backups/"
 const backupExt = ".bak"
 
+func GetBackupsDirForServer(serverId string) string {
+	return backupDir + serverId + "/"
+}
+
 func backupBuckets(serverId string, bucketNames []string) (string, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -120,7 +124,7 @@ func backupBuckets(serverId string, bucketNames []string) (string, error) {
 	defer db.Close()
 
 	backupTime := time.Now().Format("2006-01-02_15-04-05.000000")
-	path := backupDir + serverId + "/" + backupTime + "/"
+	path := GetBackupsDirForServer(serverId) + backupTime + "/"
 
 	for _, bucketName := range bucketNames {
 		fileName := bucketName + backupExt
