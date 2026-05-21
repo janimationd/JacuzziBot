@@ -14,7 +14,6 @@ var ListTamaPlaytimes = models.SlashCommand{
 	Command: &discordgo.ApplicationCommand{
 		Name:                     "list-tama-playtimes",
 		Description:              "List all recurring Tama playtimes.",
-		Options:                  []*discordgo.ApplicationCommandOption{},
 		DefaultMemberPermissions: &manageGuildPerms,
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {

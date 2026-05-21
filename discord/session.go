@@ -80,6 +80,9 @@ func registerSlashCommands() {
 	add(&commands, &tama.ScheduleTamaPlaytime)
 	add(&commands, &tama.ListTamaPlaytimes)
 	add(&commands, &tama.CancelTamaPlaytime)
+	add(&commands, &tama.BackupTamas)
+	add(&commands, &tama.RestoreTamas)
+	add(&commands, &tama.WipeTamas)
 
 	// Build the list of command definitions to sync
 	var commandDefs []*discordgo.ApplicationCommand

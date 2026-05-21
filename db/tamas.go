@@ -21,6 +21,11 @@ const tamaMinigameRoleKey string = tamaMinigameRoleBucketName
 const tamaBucketName string = "Tamas"
 const tamaTransfersBucketName string = "TamaTransfers"
 
+// All Tama bucket names should be listed here:
+var tamaBucketNames = []string{
+	tamaBucketName, tamaChannelBucketName, tamaMinigameRoleBucketName, tamaTransfersBucketName,
+}
+
 func registerTamaChannel(db *bolt.DB, channelId string) error {
 	err := db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(tamaChannelBucketName))
@@ -1188,4 +1193,16 @@ func TamaReactToHunger(
 	defer db.Close()
 
 	return tamaReactToHunger(db, tamaId, ownerTimezone)
+}
+
+func BackupTamaBuckets(serverId string) (string, error) {
+	return backupBuckets(serverId, tamaBucketNames)
+}
+
+func WipeTamaBuckets(serverId string) error {
+	return wipeBuckets(serverId, tamaBucketNames)
+}
+
+func RestoreTamaBucketsFromBackup(serverId string, backupTime string) error {
+	return restoreBucketsFromBackup(serverId, backupTime, tamaBucketNames)
 }
