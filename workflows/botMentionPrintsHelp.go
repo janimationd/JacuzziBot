@@ -15,3 +15,11 @@ func BotMentionPrintsHelp(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 }
+
+func BotMentionPrintsTamaHelp(s *discordgo.Session, m *discordgo.MessageCreate) {
+	_, err := s.ChannelMessageSendReply(m.ChannelID, utils.TamaHelp(), m.Reference())
+	if err != nil {
+		log.Println("Failed to send tama help reply:", err)
+		return
+	}
+}

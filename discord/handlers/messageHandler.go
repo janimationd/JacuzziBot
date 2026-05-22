@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"log"
+	"regexp"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -22,12 +24,17 @@ func MessageCreateHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Every other message gets the author some points!
 	workflows.MessageGetsPoints(s, m)
 
-	for _, user := range m.Mentions {
-		if user.ID == s.State.User.ID {
-			// The bot was mentioned
+	// See if the bot needs to respond to a mention
+	if strings.Contains(m.Content, "<@"+s.State.User.ID+">") {
+		// If the message is asking abaout the Tamas minigame
+		tamasMentioned, err := regexp.MatchString("[^a-zA-Z][tT]amas{0,1}[^a-zA-Z]", m.Content)
+		if err != nil {
+			log.Printf("Couldn't check for Tamas mention in message: %s\n", err.Error())
+		}
+		if tamasMentioned {
+			workflows.BotMentionPrintsTamaHelp(s, m)
+		} else {
 			workflows.BotMentionPrintsHelp(s, m)
-			// If mentioned multiple times, only print once
-			break
 		}
 	}
 }
