@@ -9,6 +9,8 @@ import (
 	"github.com/janimationd/JacuzziBot/constants"
 )
 
+const TimeFormat = "2006-01-02 15:04:05 -0700 PDT"
+
 // Formats a floating point value with up to a certain amount of decimal precision, as needed.
 func FormatUIFloat(f float64) string {
 	var result string

@@ -252,8 +252,10 @@ func careForTama(
 
 		nextCareTime := tama.GetNextCareTime()
 		if time.Now().Before(nextCareTime) {
-			return fmt.Errorf("This action is still cooling down.\n\nYou will be able to perform it again at `%s` (in %s).",
-				nextCareTime.In(userTimezone).String(), utils.FormatUIDuration(time.Until(nextCareTime)))
+			return fmt.Errorf(
+				"This action is still cooling down.\n\nYou will be able to perform it again at `%s` (in %s).",
+				nextCareTime.In(userTimezone).Format(utils.TimeFormat),
+				utils.FormatUIDuration(time.Until(nextCareTime)))
 		}
 
 		tama.LastCareTime = time.Now().Unix()

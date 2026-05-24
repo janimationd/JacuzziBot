@@ -93,7 +93,7 @@ var CareTama = models.SlashCommand{
 			})
 		} else {
 			nextTime := fmt.Sprintf("- You'll be able to care for it again at `%s` (in %s).",
-				tama.GetNextCareTime().In(userTimezone).String(),
+				tama.GetNextCareTime().In(userTimezone).Format(utils.TimeFormat),
 				utils.FormatUIDuration(time.Until(tama.GetNextCareTime())))
 			var message string
 			var flags discordgo.MessageFlags

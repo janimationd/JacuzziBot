@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/janimationd/JacuzziBot/utils"
 	"go.etcd.io/bbolt"
 )
 
@@ -67,7 +68,8 @@ func (event *ScheduledEvent) Init() {
 		result = result.Add(event.Interval)
 	}
 	event.NextTime = result
-	log.Printf("ScheduledEvent \"%s\" initialized with NextTime = [%s]\n", event.ID, event.NextTime.String())
+	log.Printf("ScheduledEvent \"%s\" initialized with NextTime = [%s]\n",
+		event.ID, event.NextTime.Format(utils.TimeFormat))
 }
 
 // Returns true if the event is not going to happen again, false otherwise.
@@ -89,7 +91,6 @@ func (event *ScheduledEvent) updateNextTime() bool {
 		return true
 	}
 	event.NextTime = event.NextTime.Add(event.Interval)
-	//log.Printf("ScheduledEvent \"%s\" advanced to NextTime = %s\n", event.ID, event.NextTime.String())
 	return true
 }
 

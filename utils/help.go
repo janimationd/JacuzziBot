@@ -37,7 +37,7 @@ func Help() string {
 func TamaHelp() string {
 	var result string
 
-	result += "Tama is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
+	result += "Tamas is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
 		"play with them to keep them happy and productive. Your Tama pets will interact with other people's pets " +
 		"and develop relationships with them. If Tamas like each other enough, they may fall in love! " +
 		"If you neglect your pets, **they will die at -10 mood!** " +

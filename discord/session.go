@@ -54,6 +54,12 @@ func registerInteractionCreateHandlers() {
 					tama.HandleTransferTamaCancelTransfer(s, i)
 				}
 			}
+		case discordgo.InteractionModalSubmit:
+			customId := i.ModalSubmitData().CustomID
+			switch customId {
+			case "predictionCreateModal":
+				handlers.PredicationCreateSubmitHandler(s, i)
+			}
 		}
 	})
 	log.Println("Registered command handler.")
@@ -67,6 +73,8 @@ func registerSlashCommands() {
 	add(&commands, &slashCommands.SetTimezone)
 	add(&commands, &slashCommands.Gamble)
 	add(&commands, &slashCommands.Award)
+	add(&commands, &slashCommands.CreatePrediction)
+
 	// Tama minigame commands
 	add(&commands, &tama.TamaHelp)
 	add(&commands, &tama.RegisterTamaChannel)
