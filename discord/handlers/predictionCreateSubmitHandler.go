@@ -14,10 +14,10 @@ import (
 	"github.com/janimationd/JacuzziBot/utils"
 )
 
-func parseOutcomes(input string) (map[rune]string, error) {
+func parseOutcomes(input string) ([]string, error) {
 	lines := strings.Split(input, "\n")
-	result := make(map[rune]string)
-	index := 'A'
+	result := []string{}
+	index := 0
 	alreadySeenOutcomes := utils.NewSet[string]()
 	for _, line := range lines {
 		if index > 'Z' {
@@ -27,7 +27,7 @@ func parseOutcomes(input string) (map[rune]string, error) {
 			return result, fmt.Errorf("Cannot have duplicate outcomes (%s).", line)
 		}
 		if line != "" {
-			result[index] = line
+			result = append(result, line)
 			alreadySeenOutcomes.Add(line)
 			index++
 		}
@@ -131,6 +131,8 @@ func PredicationCreateSubmitHandler(session *discordgo.Session, interaction *dis
 		errorMessage = fmt.Sprintf("Couldn't parse outcomes: %s", err.Error())
 	} else if len(outcomes) < 2 {
 		errorMessage = "You must specify at least 2 outcomes (one on each line)"
+	} else if len(outcomes) > 26 {
+		errorMessage = "You can't specify more than 26 outcomes"
 	}
 
 	var id models.JacuzziId

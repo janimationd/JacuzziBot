@@ -36,8 +36,9 @@ type Prediction struct {
 	ExpirationTime time.Time
 	// The ID of the event that has been scheduled to expire/cancel the prediction.
 	ExpirationEventId JacuzziId
-	// The possible outcomes that folks can bet on. Indexed via letter IDs (A, B, C, etc.).
-	Outcomes map[rune]string
+	// The possible outcomes that folks can bet on. Externally identified via letter IDs (A, B, C, etc.),
+	// where index 0 = 'A'.
+	Outcomes []string
 	// People's bets on the various options, indexed by user ID. Each user can only bet on one outcome.
 	Bets map[string]PredictionBet
 	// The current state of the prediction.
@@ -55,19 +56,19 @@ type OutcomePool struct {
 }
 
 // Get details on each outcome pool
-func (this *Prediction) OutcomePools() map[rune]OutcomePool {
-	result := make(map[rune]OutcomePool)
-	for userId, bet := range this.Bets {
-		pool := result[bet.OutcomeId]
-		if pool.Total == 0 {
-			pool = OutcomePool{
-				Total: 0,
-				Bets:  map[string]float64{},
-			}
+func (this *Prediction) OutcomePools() []*OutcomePool {
+	result := make([]*OutcomePool, len(this.Outcomes))
+	for index, _ := range result {
+		result[index] = &OutcomePool{
+			Total: 0,
+			Bets:  map[string]float64{},
 		}
+	}
+	for userId, bet := range this.Bets {
+		index := bet.OutcomeId - 'A'
+		pool := result[index]
 		pool.Bets[userId] = bet.Wager
-		pool.Total = pool.Total + bet.Wager
-		result[bet.OutcomeId] = pool
+		pool.Total += bet.Wager
 	}
 	return result
 }
@@ -86,12 +87,12 @@ func (this *Prediction) StateString() string {
 	panic(fmt.Errorf("Unknown prediction state for ID #%d: %d", this.Id, this.State))
 }
 
-func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools map[rune]OutcomePool) float64 {
-	theirPool := outcomePools[bet.OutcomeId]
+func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools []*OutcomePool) float64 {
+	theirPool := outcomePools[bet.OutcomeId-'A']
 	theirShare := bet.Wager / theirPool.Total
 	var otherPoolsTotal float64
 	for otherOutcomeId, otherPool := range outcomePools {
-		if otherOutcomeId != bet.OutcomeId {
+		if rune(otherOutcomeId+'A') != bet.OutcomeId {
 			otherPoolsTotal += otherPool.Total
 		}
 	}
@@ -116,14 +117,15 @@ func (this *Prediction) DisplayString() string {
 
 	message += "\n## Possible outcomes"
 	outcomePools := this.OutcomePools()
-	for id, outcome := range this.Outcomes {
+	for index, outcome := range this.Outcomes {
+		id := 'A' + index
 		message += fmt.Sprintf("\n### %c. %s", id, outcome)
-		totalPool := outcomePools[id].Total
+		totalPool := outcomePools[index].Total
 		message += fmt.Sprintf("\n- Total pool: %s point%s",
 			utils.FormatUIFloat(totalPool), utils.Plural(totalPool))
-		if len(outcomePools[id].Bets) > 0 {
+		if len(outcomePools[index].Bets) > 0 {
 			message += "\n- Individual bets:"
-			for userId, wager := range outcomePools[id].Bets {
+			for userId, wager := range outcomePools[index].Bets {
 				possibleGain := this.PossibleGain(this.Bets[userId], outcomePools)
 				possibleGainPercent := possibleGain / wager * 100
 				message += fmt.Sprintf("\n  - <@%s> bet %s point%s. Possible winnings: +%s more (+%s%%).",
