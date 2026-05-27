@@ -10,6 +10,7 @@ import (
 )
 
 const TimeFormat = "2006-01-02 15:04:05 -0700 PDT"
+const EventIdTimeFormat = "2006-01-02_15-04-05.000000"
 
 // Formats a floating point value with up to a certain amount of decimal precision, as needed.
 func FormatUIFloat(f float64) string {

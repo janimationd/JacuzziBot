@@ -29,4 +29,5 @@ func SetupCrucialEventsAndHandlers() {
 	// Register all handlers for events that could be stored in the database already or could be scheduled later.
 	scheduler.RegisterHandler("TamaPlaytimeHandler", events.TamaPlaytimeHandler, true)
 	scheduler.RegisterHandler("TamaDeathHandler", events.TamaDeathHandler, true)
+	scheduler.RegisterHandler("PredictionStateUpdateHandler", events.PredictionStateUpdateHandler, true)
 }

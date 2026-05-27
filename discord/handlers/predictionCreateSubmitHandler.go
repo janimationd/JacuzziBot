@@ -11,6 +11,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/scheduler/events"
 	"github.com/janimationd/JacuzziBot/utils"
 )
 
@@ -109,6 +110,7 @@ func parseFutureTime(input string, now time.Time, timezone *time.Location) (time
 func PredicationCreateSubmitHandler(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 	data := interaction.ModalSubmitData()
 	serverId := interaction.GuildID
+	channelId := interaction.ChannelID
 	userId := interaction.Member.User.ID
 
 	questionInput := data.Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
@@ -193,41 +195,75 @@ func PredicationCreateSubmitHandler(session *discordgo.Session, interaction *dis
 		}
 	}
 
-	// TODO: schedule betting close and expiration events
+	// Schedule betting close and expiration events
+	var bettingCloseEvent *models.ScheduledEvent
+	if errorMessage == "" {
+		bettingCloseEvent, err = events.SchedulePredictionStateUpdateEvent(serverId, channelId, id, bettingCloseTime)
+		if err != nil {
+			errorMessage = fmt.Sprintf("Couldn't schedule prediction close betting event: %s", err.Error())
+		}
+	}
+	var expirationEvent *models.ScheduledEvent
+	if errorMessage == "" {
+		expirationEvent, err = events.SchedulePredictionStateUpdateEvent(serverId, channelId, id, expirationTime)
+		if err != nil {
+			errorMessage = fmt.Sprintf("Couldn't schedule prediction expiration event: %s", err.Error())
+			// Unwind everything else we've done so far
+			db.CancelEvent(bettingCloseEvent.ID)
+		}
+	}
 
+	// Construct the Prediction object and send a channel message describing it
 	var prediction models.Prediction
+	var message *discordgo.Message
 	if errorMessage == "" {
 		prediction = models.Prediction{
 			Id:               id,
+			Creator:          userId,
 			Question:         questionInput,
 			CreationTime:     now,
 			BettingCloseTime: bettingCloseTime,
 			ExpirationTime:   expirationTime,
 			Outcomes:         outcomes,
 			Bets:             make(map[string]models.PredictionBet),
-			State:            models.AcceptingBets,
 		}
-		err = db.StorePrediction(serverId, &prediction)
+
+		message, err = session.ChannelMessageSend(channelId, prediction.DisplayString())
 		if err != nil {
-			errorMessage = fmt.Sprintf("Couldn't store prediction in DB: %s", err.Error())
+			errorMessage = fmt.Sprintf("Couldn't send channel message for prediction creation: %s", err.Error())
+			// Unwind everything else we've done so far
+			db.CancelEvent(expirationEvent.ID)
+			db.CancelEvent(bettingCloseEvent.ID)
+		} else {
+			prediction.MessageId = message.ID
 		}
 	}
 
-	var message string
-	var flags discordgo.MessageFlags
+	// Store the prediction object in the DB
+	if errorMessage == "" {
+		err = db.StorePrediction(serverId, &prediction)
+		if err != nil {
+			errorMessage = fmt.Sprintf("Couldn't store prediction in DB: %s", err.Error())
+			// Unwind everything else we've done so far
+			session.ChannelMessageDelete(channelId, message.ID)
+			db.CancelEvent(expirationEvent.ID)
+			db.CancelEvent(bettingCloseEvent.ID)
+		}
+	}
+
+	var response string
 	if errorMessage != "" {
-		message = errorMessage
-		flags = discordgo.MessageFlagsEphemeral
+		response = errorMessage
 	} else {
-		message = prediction.DisplayString()
+		response = "Success!"
 	}
 
 	// Must respond, or else the modal won't go away.
 	session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: message,
-			Flags:   flags,
+			Content: response,
+			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
 }

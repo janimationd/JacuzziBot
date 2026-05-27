@@ -98,7 +98,7 @@ func scheduleEventWithTx(tx *bbolt.Tx, event *models.ScheduledEvent, overwriteIf
 		return modified, err
 	}
 	err = bucket.Put([]byte(event.ID), eventBytes)
-	if err != nil {
+	if err == nil {
 		modified = true
 	}
 

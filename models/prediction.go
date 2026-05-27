@@ -10,10 +10,10 @@ import (
 type PredictionState int
 
 const (
-	AcceptingBets PredictionState = iota
-	Locked
-	Resolved
-	Cancelled
+	BettingOpen PredictionState = iota
+	BettingLocked
+	PredictionResolved
+	PredictionCancelled
 )
 
 type PredictionBet struct {
@@ -24,6 +24,8 @@ type PredictionBet struct {
 type Prediction struct {
 	// The unique ID of the prediction
 	Id JacuzziId
+	// Who created the prediction? (user ID)
+	Creator string
 	// The question/text of the prediction.
 	Question string
 	// When the prediction was created.
@@ -41,11 +43,19 @@ type Prediction struct {
 	Outcomes []string
 	// People's bets on the various options, indexed by user ID. Each user can only bet on one outcome.
 	Bets map[string]PredictionBet
-	// The current state of the prediction.
-	State PredictionState
 	// The ID of the message in the server that currently holds the controls for interacting with the prediction.
 	// Whenever the prediction is modified, we update the text of this message as well to reflect the new state.
 	MessageId string
+
+	// The inner state of the prediction. Don't touch.
+	Resolved          bool
+	ManuallyCancelled bool
+}
+
+type PredictionStateUpdateEventPayload struct {
+	ServerId     string
+	ChannelId    string
+	PredictionId JacuzziId
 }
 
 type OutcomePool struct {
@@ -53,6 +63,21 @@ type OutcomePool struct {
 	Total float64
 	// The individual bets that compose the pool, keyed by user ID
 	Bets map[string]float64
+}
+
+// Get the current state of the prediction
+func (this *Prediction) GetState(now time.Time) PredictionState {
+	if this.ManuallyCancelled {
+		return PredictionCancelled
+	} else if this.Resolved {
+		return PredictionResolved
+	} else if !now.Before(this.ExpirationTime) {
+		return PredictionCancelled
+	} else if !now.Before(this.BettingCloseTime) {
+		return BettingLocked
+	} else {
+		return BettingOpen
+	}
 }
 
 // Get details on each outcome pool
@@ -74,17 +99,18 @@ func (this *Prediction) OutcomePools() []*OutcomePool {
 }
 
 func (this *Prediction) StateString() string {
-	switch this.State {
-	case AcceptingBets:
+	state := this.GetState(time.Now())
+	switch state {
+	case BettingOpen:
 		return "Active and accepting bets"
-	case Locked:
+	case BettingLocked:
 		return "Active and no longer accepting bets"
-	case Resolved:
+	case PredictionResolved:
 		return "Resolved and paid out"
-	case Cancelled:
+	case PredictionCancelled:
 		return "Expired/cancelled and refunded"
 	}
-	panic(fmt.Errorf("Unknown prediction state for ID #%d: %d", this.Id, this.State))
+	panic(fmt.Errorf("Unknown prediction state for ID #%d: %d", this.Id, state))
 }
 
 func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools []*OutcomePool) float64 {
@@ -102,7 +128,7 @@ func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools []*OutcomeP
 func (this *Prediction) DisplayString() string {
 	message := fmt.Sprintf("# Prediction #%d - %s", this.Id, this.Question)
 	message += fmt.Sprintf("\n- **%s**", this.StateString())
-	message += fmt.Sprintf("\n- Created at `%s`", this.CreationTime.Format(utils.TimeFormat))
+	message += fmt.Sprintf("\n- Created by <@%s> at `%s`", this.Creator, this.CreationTime.Format(utils.TimeFormat))
 	now := time.Now()
 	if now.After(this.BettingCloseTime) {
 		message += fmt.Sprintf("\n- Betting closed at `%s`", this.BettingCloseTime.Format(utils.TimeFormat))
