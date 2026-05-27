@@ -588,7 +588,7 @@ func documentDirectionalInteractionResult(
 
 	// Document primary and secondary effects
 	if desiredChange != 0 {
-		if desiredChange == result.FinalDelta {
+		if desiredChange+result.FriendlyBonus == result.FinalDelta {
 			summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
 				indent, this.GetNameAndId(), other.GetNameAndId(),
 				utils.SignString(result.FinalDelta), result.FinalDelta)
