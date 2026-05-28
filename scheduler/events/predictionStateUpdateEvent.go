@@ -10,6 +10,7 @@ import (
 	"github.com/janimationd/JacuzziBot/discord/session"
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/utils"
+	"github.com/janimationd/JacuzziBot/workflows"
 	"go.etcd.io/bbolt"
 )
 
@@ -46,7 +47,7 @@ func SchedulePredictionStateUpdateEvent(
 	return event, nil
 }
 
-func PredictionStateUpdateHandler(event *models.ScheduledEvent, _ time.Time, _ *bbolt.Tx) bool {
+func PredictionStateUpdateHandler(event *models.ScheduledEvent, now time.Time, _ *bbolt.Tx) bool {
 	payload := &models.PredictionStateUpdateEventPayload{}
 	err := json.Unmarshal(event.Payload, payload)
 	if err != nil {
@@ -61,6 +62,7 @@ func PredictionStateUpdateHandler(event *models.ScheduledEvent, _ time.Time, _ *
 		return false
 	}
 
+	workflows.CreateOrUpdatePredictionMessage(prediction, payload.ChannelId, now)
 	_, err = session.Handle.ChannelMessageEdit(payload.ChannelId, prediction.MessageId, prediction.DisplayString())
 	if err != nil {
 		log.Printf("Couldn't edit original prediction channel message `%s` when updating state: %s",

@@ -13,6 +13,7 @@ import (
 	"github.com/janimationd/JacuzziBot/models"
 	"github.com/janimationd/JacuzziBot/scheduler/events"
 	"github.com/janimationd/JacuzziBot/utils"
+	"github.com/janimationd/JacuzziBot/workflows"
 )
 
 func parseOutcomes(input string) ([]string, error) {
@@ -228,14 +229,12 @@ func PredicationCreateSubmitHandler(session *discordgo.Session, interaction *dis
 			Bets:             make(map[string]models.PredictionBet),
 		}
 
-		message, err = session.ChannelMessageSend(channelId, prediction.DisplayString())
+		err = workflows.CreateOrUpdatePredictionMessage(&prediction, channelId, now)
 		if err != nil {
 			errorMessage = fmt.Sprintf("Couldn't send channel message for prediction creation: %s", err.Error())
 			// Unwind everything else we've done so far
 			db.CancelEvent(expirationEvent.ID)
 			db.CancelEvent(bettingCloseEvent.ID)
-		} else {
-			prediction.MessageId = message.ID
 		}
 	}
 
