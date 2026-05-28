@@ -12,6 +12,109 @@ import (
 	"github.com/janimationd/JacuzziBot/models"
 )
 
+// Show bet modal, collecting info on the target outcome and wager
+func betModal(i *discordgo.InteractionCreate, p *models.Prediction) error {
+	return session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "predictionBetModal",
+			Title:    fmt.Sprintf("Bet On Prediction #%d", p.Id),
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "outcome",
+							Label:       "The outcome ID you're betting on (A-Z)",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "A",
+							Required:    true,
+							MinLength:   1,
+							MaxLength:   1,
+						},
+					},
+				},
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "wager",
+							Label:       "The point amount you're wagering (number)",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "100",
+							Required:    true,
+							MinLength:   1,
+							MaxLength:   50,
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+// Show resolve modal, collecting info on the winning outcome
+func resolveModal(i *discordgo.InteractionCreate, p *models.Prediction) error {
+	return session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "predictionResolveModal",
+			Title:    fmt.Sprintf("Resolve Prediction #%d", p.Id),
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "outcome",
+							Label:       "The ID of the winning outcome (A-Z)",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "A",
+							Required:    true,
+							MinLength:   1,
+							MaxLength:   1,
+						},
+					},
+				},
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "proof",
+							Label:       "Any relevant proof of this outcome",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "Perhaps a link?",
+							Required:    false,
+							MaxLength:   512,
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+// Show cancel modal, collecting info on the reason
+func cancelModal(i *discordgo.InteractionCreate, p *models.Prediction) error {
+	return session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "predictionCancelModal",
+			Title:    fmt.Sprintf("Cancel Prediction #%d", p.Id),
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "reason",
+							Label:       "Why are you cancelling the prediction?",
+							Style:       discordgo.TextInputShort,
+							Placeholder: "Misconfigured the prediction",
+							Required:    true,
+							MinLength:   1,
+							MaxLength:   256,
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
 func isUserAnAdmin(i *discordgo.InteractionCreate) bool {
 	userPerms := i.Member.Permissions
 	return (userPerms & discordgo.PermissionManageGuild) != 0
@@ -29,9 +132,7 @@ func handleBet(
 		return fmt.Errorf("Bets are closed.")
 	}
 
-	// TODO: show bet modal, collecting info on the target outcome and wager
-
-	return nil
+	return betModal(i, p)
 }
 
 func handleResolve(
@@ -47,14 +148,11 @@ func handleResolve(
 		return fmt.Errorf("Only admins can resolve predictions.")
 	}
 
-	// Can only resolve when betting is open or closed
-	if state != models.PredictionResolved && state != models.PredictionCancelled {
+	if state == models.PredictionResolved || state == models.PredictionCancelled {
 		return fmt.Errorf("You can only resolve a prediction that hasn't been resolved or cancelled yet.")
 	}
 
-	// TODO: show resolve modal, collecting info on the winning outcome
-
-	return nil
+	return resolveModal(i, p)
 }
 
 func handleCancel(
@@ -75,14 +173,11 @@ func handleCancel(
 		}
 	}
 
-	// Can only resolve when betting is open or closed
-	if state != models.PredictionResolved && state != models.PredictionCancelled {
+	if state == models.PredictionResolved || state == models.PredictionCancelled {
 		return fmt.Errorf("You can only cancel a prediction that hasn't been resolved or cancelled yet.")
 	}
 
-	// TODO: show a cancel modal which asks for a reason for cancelling the prediction
-
-	return nil
+	return cancelModal(i, p)
 }
 
 func PredictionButtonHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
