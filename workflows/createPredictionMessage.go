@@ -15,30 +15,36 @@ import (
 func CreateOrUpdatePredictionMessage(p *models.Prediction, channelId string, now time.Time) error {
 	innerComps := []discordgo.MessageComponent{}
 	state := p.GetState(now)
+	customIdSuffix := fmt.Sprintf("|%d", p.Id)
+
 	if state == models.BettingOpen {
 		innerComps = append(innerComps, discordgo.Button{
 			Label:    "Bet",
 			Style:    discordgo.PrimaryButton,
-			CustomID: "PredictionBetButton",
+			CustomID: "PredictionBetButton" + customIdSuffix,
 		})
 	}
 	if state != models.PredictionResolved && state != models.PredictionCancelled {
 		innerComps = append(innerComps, discordgo.Button{
 			Label:    "Resolve",
 			Style:    discordgo.SuccessButton,
-			CustomID: "PredictionResolveButton",
+			CustomID: "PredictionResolveButton" + customIdSuffix,
 		})
 		innerComps = append(innerComps, discordgo.Button{
 			Label:    "Cancel",
 			Style:    discordgo.DangerButton,
-			CustomID: "PredictionCancelButton",
+			CustomID: "PredictionCancelButton" + customIdSuffix,
 		})
 	}
 
-	comps := []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: innerComps,
-		},
+	comps := []discordgo.MessageComponent{}
+
+	if len(innerComps) > 0 {
+		comps = []discordgo.MessageComponent{
+			discordgo.ActionsRow{
+				Components: innerComps,
+			},
+		}
 	}
 
 	if p.MessageId == "" {

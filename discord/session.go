@@ -52,6 +52,8 @@ func registerInteractionCreateHandlers() {
 					tama.HandleTransferTamaAcceptTransfer(s, i)
 				} else if strings.HasPrefix(customId, tama.TransferTamaCancelTransferId) {
 					tama.HandleTransferTamaCancelTransfer(s, i)
+				} else if strings.HasPrefix(customId, "Prediction") {
+					handlers.PredictionButtonHandler(s, i)
 				}
 			}
 		case discordgo.InteractionModalSubmit:

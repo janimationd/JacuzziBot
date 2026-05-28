@@ -4,6 +4,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/janimationd/JacuzziBot/constants"
 )
 
 // A JaccuziId is a server-unique unsigned integral ID. All things identified by such an ID have a unique value across
@@ -28,6 +33,23 @@ func BytesFromJacuzziId(id JacuzziId) []byte {
 // Convert a JacuzziId to a string.
 func StringFromJacuzziId(id JacuzziId) string {
 	return fmt.Sprint(id)
+}
+
+// Extract the numeric JacuzziId from the first parameter in the CustomId string.
+func ExtractJacuzziIdFromCustomId(interaction *discordgo.InteractionCreate) (JacuzziId, error) {
+	customId := interaction.MessageComponentData().CustomID
+	parts := strings.Split(customId, "|")
+	if len(parts) != 2 {
+		return NoId, fmt.Errorf("Couldn't parse CustomID %s%s", customId, constants.ErrorReportMessageSuffix)
+	} else {
+		id, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return NoId, fmt.Errorf("Couldn't parse CustomID second part %s%s",
+				parts[1], constants.ErrorReportMessageSuffix)
+		} else {
+			return JacuzziId(id), nil
+		}
+	}
 }
 
 // Unit tests to verify the above functions.

@@ -3,8 +3,6 @@ package tama
 import (
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/janimationd/JacuzziBot/constants"
@@ -138,29 +136,13 @@ var TransferTama = models.SlashCommand{
 	},
 }
 
-func extractTamaIdFromCustomId(interaction *discordgo.InteractionCreate) (models.JacuzziId, error) {
-	customId := interaction.MessageComponentData().CustomID
-	parts := strings.Split(customId, "|")
-	if len(parts) != 2 {
-		return models.NoId, fmt.Errorf("Couldn't parse CustomID %s%s", customId, constants.ErrorReportMessageSuffix)
-	} else {
-		tamaIntId, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return models.NoId, fmt.Errorf("Couldn't parse CustomID second part %s%s",
-				parts[1], constants.ErrorReportMessageSuffix)
-		} else {
-			return models.JacuzziId(tamaIntId), nil
-		}
-	}
-}
-
 func HandleTransferTamaAcceptTransfer(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 	var errorMessage string
 
 	serverId := interaction.GuildID
 	userId := interaction.Member.User.ID
 
-	tamaId, err := extractTamaIdFromCustomId(interaction)
+	tamaId, err := models.ExtractJacuzziIdFromCustomId(interaction)
 	if err != nil {
 		errorMessage = err.Error()
 	}
@@ -210,7 +192,7 @@ func HandleTransferTamaCancelTransfer(session *discordgo.Session, interaction *d
 	serverId := interaction.GuildID
 	userId := interaction.Member.User.ID
 
-	tamaId, err := extractTamaIdFromCustomId(interaction)
+	tamaId, err := models.ExtractJacuzziIdFromCustomId(interaction)
 	if err != nil {
 		errorMessage = err.Error()
 	}
