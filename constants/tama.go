@@ -18,7 +18,7 @@ const TamaNameDisallowedCharactersForPrinting = "*_~#:[](){}`<>@/\\"
 const EggCareHatchThreshold uint8 = 3
 
 // The cooldown period for caring for an egg
-const EggCareCooldown = 1 * time.Second
+const EggCareCooldown = 8 * time.Hour
 
 // The cooldown period for caring for a hatched Tama
 const TamaCareCooldown = 8 * time.Hour
