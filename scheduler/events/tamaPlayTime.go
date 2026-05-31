@@ -12,6 +12,7 @@ import (
 	"github.com/janimationd/JacuzziBot/db"
 	"github.com/janimationd/JacuzziBot/discord/session"
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/utils"
 	"github.com/janimationd/JacuzziBot/workflows/tamas"
 	"go.etcd.io/bbolt"
 )
@@ -164,7 +165,10 @@ func TamaPlaytimeHandler(event *models.ScheduledEvent, _ time.Time, tx *bbolt.Tx
 	}
 
 	// Send the summary message to the channel
-	session.Handle.ChannelMessageSend(channelId, summary)
+	err = utils.SendLongMessage(channelId, summary)
+	if err != nil {
+		log.Printf("Couldn't send Tama playtime message(s): %s\n", err.Error())
+	}
 
 	return false
 }
