@@ -3,6 +3,7 @@ package tama
 import (
 	"cmp"
 	"fmt"
+	"log"
 	"slices"
 	"time"
 
@@ -112,24 +113,37 @@ var CheckTama = models.SlashCommand{
 			}
 		}
 
+		// Handle trunaction of extremely long tama status lists.
+		if errorMessage == "" && len([]rune(message)) > utils.DiscordMessageRuneLimit {
+			appendix := "[truncated]"
+			messages := utils.SplitMessage(message, utils.DiscordMessageRuneLimit-len([]rune(appendix)))
+			message = messages[0] + appendix
+		}
+
 		if errorMessage != "" {
 			// Respond with error message
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			err = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: errorMessage,
 					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
+			if err != nil {
+				log.Printf("Couldn't send check-tama error response: %s\n", err.Error())
+			}
 		} else {
 			// Respond with feedback message
-			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			err = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: message,
 					Flags:   discordgo.MessageFlagsEphemeral,
 				},
 			})
+			if err != nil {
+				log.Printf("Couldn't send check-tama response: %s\n", err.Error())
+			}
 		}
 	},
 }
