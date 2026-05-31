@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,4 +79,20 @@ func SignString[T Number](val T) string {
 	}
 	// Don't return anything for negatives because they'll be written out with their negative sign already.
 	return ""
+}
+
+func Atoi(input string) int {
+	num, err := strconv.Atoi(input)
+	if err != nil {
+		panic(err)
+	}
+	return num
+}
+
+func Atof(input string) float64 {
+	num, err := strconv.ParseFloat(input, 64)
+	if err != nil {
+		panic(err)
+	}
+	return num
 }

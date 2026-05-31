@@ -37,18 +37,10 @@ func parseOutcomes(input string) ([]string, error) {
 	return result, nil
 }
 
-func atoi(input string) int {
-	num, err := strconv.Atoi(input)
-	if err != nil {
-		panic(err)
-	}
-	return num
-}
-
 func extractFirstCaptureAsInt(regex *regexp.Regexp, input string) int {
 	captures := regex.FindStringSubmatch(input)
 	numString := captures[1]
-	return atoi(numString)
+	return utils.Atoi(numString)
 }
 
 func extractCapturesAsDate(regex *regexp.Regexp, input string, timezone *time.Location) (time.Time, error) {
@@ -70,12 +62,12 @@ func extractCapturesAsDate(regex *regexp.Regexp, input string, timezone *time.Lo
 		month = monthTime.Month()
 	}
 	dayString := captures[2]
-	day := atoi(dayString)
+	day := utils.Atoi(dayString)
 	if day < 1 || day > 31 {
 		return time.Unix(0, 0), fmt.Errorf("Day \"%s\" is invalid", dayString)
 	}
 	yearString := captures[3]
-	year := atoi(yearString)
+	year := utils.Atoi(yearString)
 	return time.Date(year, month, day, 0, 0, 0, 0, timezone), nil
 }
 

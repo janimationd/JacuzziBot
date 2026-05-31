@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/janimationd/JacuzziBot/constants"
 )
 
@@ -36,8 +35,7 @@ func StringFromJacuzziId(id JacuzziId) string {
 }
 
 // Extract the numeric JacuzziId from the first parameter in the CustomId string.
-func ExtractJacuzziIdFromCustomId(interaction *discordgo.InteractionCreate) (JacuzziId, error) {
-	customId := interaction.MessageComponentData().CustomID
+func ExtractJacuzziIdFromCustomId(customId string) (JacuzziId, error) {
 	parts := strings.Split(customId, "|")
 	if len(parts) != 2 {
 		return NoId, fmt.Errorf("Couldn't parse CustomID %s%s", customId, constants.ErrorReportMessageSuffix)

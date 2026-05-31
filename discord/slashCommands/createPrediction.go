@@ -35,7 +35,7 @@ var CreatePrediction = models.SlashCommand{
 			err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseModal,
 				Data: &discordgo.InteractionResponseData{
-					CustomID: "predictionCreateModal",
+					CustomID: "PredictionCreateModal",
 					Title:    "Create a Prediction",
 					Components: []discordgo.MessageComponent{
 						discordgo.ActionsRow{

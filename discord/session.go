@@ -53,14 +53,16 @@ func registerInteractionCreateHandlers() {
 				} else if strings.HasPrefix(customId, tama.TransferTamaCancelTransferId) {
 					tama.HandleTransferTamaCancelTransfer(s, i)
 				} else if strings.HasPrefix(customId, "Prediction") {
-					handlers.PredictionButtonHandler(s, i)
+					handlers.PredictionInteractionHandler(s, i)
 				}
 			}
 		case discordgo.InteractionModalSubmit:
 			customId := i.ModalSubmitData().CustomID
 			switch customId {
-			case "predictionCreateModal":
+			case "PredictionCreateModal":
 				handlers.PredicationCreateSubmitHandler(s, i)
+			default:
+				handlers.PredictionInteractionHandler(s, i)
 			}
 		}
 	})

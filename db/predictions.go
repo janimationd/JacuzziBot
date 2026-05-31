@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/utils"
 	"go.etcd.io/bbolt"
 )
 
@@ -47,6 +48,47 @@ func getPrediction(db *bbolt.DB, predictionId models.JacuzziId) (*models.Predict
 	return prediction, nil
 }
 
+func placeBetOnPrediction(
+	db *bbolt.DB,
+	predictionId models.JacuzziId,
+	userId string,
+	bet models.PredictionBet,
+) (*models.Prediction, error) {
+	prediction := &models.Prediction{}
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(predictionsBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Couldn't place bet on prediction because predictions bucket didn't exist")
+		}
+		predictionBytes := bucket.Get(models.BytesFromJacuzziId(predictionId))
+		if predictionBytes == nil {
+			return fmt.Errorf("Couldn't place bet on prediction because prediction %d didn't exist", predictionId)
+		}
+		err := json.Unmarshal(predictionBytes, prediction)
+		if err != nil {
+			return err
+		}
+		existingWager := prediction.Bets[userId].Wager
+		if existingWager != 0 {
+			return fmt.Errorf("You have already bet %s point%s on outcome %c of this prediction and cannot bet again.",
+				utils.FormatUIFloat(existingWager), utils.Plural(existingWager), prediction.Bets[userId].OutcomeId)
+		}
+		prediction.Bets[userId] = bet
+		predictionBytes, err = json.Marshal(prediction)
+		if err != nil {
+			return err
+		}
+		return bucket.Put(models.BytesFromJacuzziId(predictionId), predictionBytes)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return prediction, nil
+}
+
 func StorePrediction(serverId string, prediction *models.Prediction) error {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -67,4 +109,20 @@ func GetPrediction(serverId string, predictionId models.JacuzziId) (*models.Pred
 	defer db.Close()
 
 	return getPrediction(db, predictionId)
+}
+
+func PlaceBetOnPrediction(
+	serverId string,
+	predictionId models.JacuzziId,
+	userId string,
+	bet models.PredictionBet,
+) (*models.Prediction, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return placeBetOnPrediction(db, predictionId, userId, bet)
 }

@@ -142,7 +142,8 @@ func HandleTransferTamaAcceptTransfer(session *discordgo.Session, interaction *d
 	serverId := interaction.GuildID
 	userId := interaction.Member.User.ID
 
-	tamaId, err := models.ExtractJacuzziIdFromCustomId(interaction)
+	customId := interaction.MessageComponentData().CustomID
+	tamaId, err := models.ExtractJacuzziIdFromCustomId(customId)
 	if err != nil {
 		errorMessage = err.Error()
 	}
@@ -192,7 +193,8 @@ func HandleTransferTamaCancelTransfer(session *discordgo.Session, interaction *d
 	serverId := interaction.GuildID
 	userId := interaction.Member.User.ID
 
-	tamaId, err := models.ExtractJacuzziIdFromCustomId(interaction)
+	customId := interaction.MessageComponentData().CustomID
+	tamaId, err := models.ExtractJacuzziIdFromCustomId(customId)
 	if err != nil {
 		errorMessage = err.Error()
 	}

@@ -11,7 +11,7 @@ import (
 
 // Get the list of message components that should be attached to the main prediction message. If initialSend is true,
 // it'll create a message for the first time. Otherwise it'll update the one that's identified in the prediction.
-// The prediction p will be updated with the channel message ID if there was no error.
+// The prediction p will be updated with the message and channel IDs if there was no error.
 func CreateOrUpdatePredictionMessage(p *models.Prediction, channelId string, now time.Time) error {
 	innerComps := []discordgo.MessageComponent{}
 	state := p.GetState(now)
@@ -57,11 +57,12 @@ func CreateOrUpdatePredictionMessage(p *models.Prediction, channelId string, now
 			return fmt.Errorf("Couldn't send initial prediction message: %w", err)
 		}
 		p.MessageId = message.ID
+		p.ChannelId = channelId
 	} else {
 		content := p.DisplayString()
 		messageEdit := &discordgo.MessageEdit{
 			ID:         p.MessageId,
-			Channel:    channelId,
+			Channel:    p.ChannelId,
 			Content:    &content,
 			Components: &comps,
 		}

@@ -46,6 +46,8 @@ type Prediction struct {
 	// The ID of the message in the server that currently holds the controls for interacting with the prediction.
 	// Whenever the prediction is modified, we update the text of this message as well to reflect the new state.
 	MessageId string
+	// The channel where the prediction message lives.
+	ChannelId string
 
 	// The inner state of the prediction. Don't touch.
 	Resolved          bool
@@ -126,7 +128,7 @@ func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools []*OutcomeP
 }
 
 func (this *Prediction) DisplayString() string {
-	message := fmt.Sprintf("# Prediction #%d - %s", this.Id, this.Question)
+	message := fmt.Sprintf("# Prediction - %s", this.Question)
 	message += fmt.Sprintf("\n- **%s**", this.StateString())
 	message += fmt.Sprintf("\n- Created by <@%s> at `%s`", this.Creator, this.CreationTime.Format(utils.TimeFormat))
 	now := time.Now()
@@ -154,7 +156,7 @@ func (this *Prediction) DisplayString() string {
 			for userId, wager := range outcomePools[index].Bets {
 				possibleGain := this.PossibleGain(this.Bets[userId], outcomePools)
 				possibleGainPercent := possibleGain / wager * 100
-				message += fmt.Sprintf("\n  - <@%s> bet %s point%s. Possible winnings: +%s more (+%s%%).",
+				message += fmt.Sprintf("\n  - <@%s> bet %s point%s. Possible winnings: +%s (+%s%%).",
 					userId, utils.FormatUIFloat(wager), utils.Plural(wager), utils.FormatUIFloat(possibleGain),
 					utils.FormatUIFloat(possibleGainPercent),
 				)
@@ -162,4 +164,8 @@ func (this *Prediction) DisplayString() string {
 		}
 	}
 	return message
+}
+
+func (this *Prediction) GetOutcome(id rune) string {
+	return this.Outcomes[id-'A']
 }
