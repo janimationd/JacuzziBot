@@ -63,7 +63,7 @@ func PredictionStateUpdateHandler(event *models.ScheduledEvent, now time.Time, _
 	}
 
 	workflows.CreateOrUpdatePredictionMessage(prediction, payload.ChannelId, now)
-	_, err = session.Handle.ChannelMessageEdit(payload.ChannelId, prediction.MessageId, prediction.DisplayString())
+	_, err = session.Handle.ChannelMessageEdit(payload.ChannelId, prediction.MessageId, prediction.DisplayString(now))
 	if err != nil {
 		log.Printf("Couldn't edit original prediction channel message `%s` when updating state: %s",
 			prediction.MessageId, err.Error())

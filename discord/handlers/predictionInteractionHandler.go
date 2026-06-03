@@ -229,9 +229,13 @@ func handleBetModal(
 		db.ModifyUserPoints(serverId, userId, wagerFloat)
 		return err
 	}
-	workflows.CreateOrUpdatePredictionMessage(p, "", now)
+	err = workflows.CreateOrUpdatePredictionMessage(p, "", now)
+	if err != nil {
+		log.Printf("Couldn't update prediction message: %s\n", err.Error())
+	}
 
-	message := fmt.Sprintf("<@%s> has wagered **%s point%s** on Prediction %d's outcome %c: \"%s\". *They now have %s point%s.*",
+	message := fmt.Sprintf("<@%s> has wagered **%s point%s** on Prediction #%d's outcome %c: \"%s\". "+
+		"*They now have %s point%s.*",
 		userId, utils.FormatUIFloat(wagerFloat), utils.Plural(wagerFloat), p.Id, outcomeIdRune,
 		p.GetOutcome(outcomeIdRune), utils.FormatUIFloat(user.Points), utils.Plural(user.Points))
 	messageSend := discordgo.MessageSend{
@@ -244,7 +248,7 @@ func handleBetModal(
 	}
 	_, err = session.Handle.ChannelMessageSendComplex(p.ChannelId, &messageSend)
 	if err != nil {
-		log.Printf("Couldn't send bet channel message: %s", err.Error())
+		log.Printf("Couldn't send prediction bet channel message: %s", err.Error())
 	}
 
 	// Respond to the interaction.
@@ -252,6 +256,191 @@ func handleBetModal(
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: "Bet placed!",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
+func handleResolveModal(
+	i *discordgo.InteractionCreate,
+	p *models.Prediction,
+	state models.PredictionState,
+	now time.Time,
+) error {
+	serverId := i.GuildID
+	userId := i.Member.User.ID
+	log.Printf("User %s submitted Resolve modal for prediction %d\n", userId, p.Id)
+
+	if state == models.PredictionResolved || state == models.PredictionCancelled {
+		return fmt.Errorf("Sorry, this prediction has already been resolved or cancelled.")
+	}
+
+	outcomeId := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+	outcomeIdRune := []rune(outcomeId)[0]
+	if outcomeIdRune < 'A' || outcomeIdRune >= rune('A'+len(p.Outcomes)) {
+		return fmt.Errorf("Outcome \"%c\" is invalid for this prediction.", outcomeIdRune)
+	}
+	outcomeIndex := outcomeIdRune - 'A'
+
+	// Can be "" since this is optional
+	proof := i.ModalSubmitData().Components[1].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
+	winningOutcome := p.Outcomes[outcomeIndex]
+
+	message := fmt.Sprintf("# Prediction #%d has been resolved!\n- Resolved by <@%s>\n- Outcome: %c - `%s`",
+		p.Id, userId, outcomeIdRune, winningOutcome)
+	if proof != "" {
+		message += fmt.Sprintf("\n- Proof: \"%s\"", proof)
+	}
+
+	p, err := db.ResolvePrediction(serverId, p.Id, outcomeIdRune)
+	if err != nil {
+		log.Printf("Couldn't resolve prediction: %s\n", err.Error())
+		// Respond to the interaction.
+		err2 := session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: err.Error(),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err2 != nil {
+			log.Printf("Couldn't send prediction error response: %s\n", err2.Error())
+		}
+		return err
+	}
+
+	outcomePools := p.OutcomePools()
+	winningOutcomePool := outcomePools[outcomeIndex]
+
+	// Pay out all winners
+	if len(winningOutcomePool.Bets) > 0 {
+		message += "\n## Winners"
+		for winnerId, wager := range winningOutcomePool.Bets {
+			winnings := p.PossibleGain(p.Bets[winnerId], outcomePools)
+			winningsPercent := winnings / wager * 100
+			winner, err := db.ModifyUserPoints(serverId, winnerId, winnings)
+			if err != nil {
+				str := fmt.Sprintf("Couldn't pay <@%s> their winnings: `%s`\n", winnerId, err.Error())
+				message += fmt.Sprintf("\n- %s", str)
+				log.Println(str)
+			} else {
+				message += fmt.Sprintf("\n- <@%s>: **+%s point%s** (+%s%%), *now at %s*",
+					winnerId, utils.FormatUIFloat(winnings), utils.Plural(winnings),
+					utils.FormatUIFloat(winningsPercent), utils.FormatUIFloat(winner.Points))
+			}
+		}
+	} else {
+		message += "\n## Nobody correctly guessed the outcome, everyone's a loser!"
+	}
+
+	err = workflows.CreateOrUpdatePredictionMessage(p, "", now)
+	if err != nil {
+		log.Printf("Couldn't update prediction message: %s\n", err.Error())
+	}
+
+	messageSend := discordgo.MessageSend{
+		Content: message,
+		Reference: &discordgo.MessageReference{
+			MessageID: p.MessageId,
+			ChannelID: p.ChannelId,
+			GuildID:   serverId,
+		},
+	}
+	_, err = session.Handle.ChannelMessageSendComplex(p.ChannelId, &messageSend)
+	if err != nil {
+		log.Printf("Couldn't send prediction resolve channel message: %s", err.Error())
+	}
+
+	// Respond to the interaction.
+	return session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Prediction resolved!",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
+func handleCancelModal(
+	i *discordgo.InteractionCreate,
+	p *models.Prediction,
+	state models.PredictionState,
+	now time.Time,
+) error {
+	serverId := i.GuildID
+	userId := i.Member.User.ID
+	log.Printf("User %s submitted Cancel modal for prediction %d\n", userId, p.Id)
+
+	if state == models.PredictionResolved || state == models.PredictionCancelled {
+		return fmt.Errorf("Sorry, this prediction has already been resolved or cancelled.")
+	}
+
+	reason := i.ModalSubmitData().Components[0].(*discordgo.ActionsRow).Components[0].(*discordgo.TextInput).Value
+
+	message := fmt.Sprintf("# Prediction #%d has been cancelled!\n- Cancelled by <@%s>\n- Reason: `%s`",
+		p.Id, userId, reason)
+
+	p, err := db.CancelPrediction(serverId, p.Id)
+	if err != nil {
+		log.Printf("Couldn't cancel prediction: %s\n", err.Error())
+		// Respond to the interaction.
+		err2 := session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: err.Error(),
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		})
+		if err2 != nil {
+			log.Printf("Couldn't send prediction error response: %s\n", err2.Error())
+		}
+		return err
+	}
+
+	// Refund all bettors
+	if len(p.Bets) > 0 {
+		message += "\n## Refunds"
+		for bettorId, bet := range p.Bets {
+			wager := bet.Wager
+			winner, err := db.ModifyUserPoints(serverId, bettorId, wager)
+			if err != nil {
+				str := fmt.Sprintf("Couldn't refund <@%s> their wager: `%s`\n", bettorId, err.Error())
+				message += fmt.Sprintf("\n- %s", str)
+				log.Println(str)
+			} else {
+				message += fmt.Sprintf("\n- <@%s>: refunded their %s point%s, *now at %s*",
+					bettorId, utils.FormatUIFloat(wager), utils.Plural(wager),
+					utils.FormatUIFloat(winner.Points))
+			}
+		}
+	} else {
+		message += "\n## Nobody bet, so no refunds required"
+	}
+
+	err = workflows.CreateOrUpdatePredictionMessage(p, "", now)
+	if err != nil {
+		log.Printf("Couldn't update prediction message: %s\n", err.Error())
+	}
+
+	messageSend := discordgo.MessageSend{
+		Content: message,
+		Reference: &discordgo.MessageReference{
+			MessageID: p.MessageId,
+			ChannelID: p.ChannelId,
+			GuildID:   serverId,
+		},
+	}
+	_, err = session.Handle.ChannelMessageSendComplex(p.ChannelId, &messageSend)
+	if err != nil {
+		log.Printf("Couldn't send prediction cancel channel message: %s", err.Error())
+	}
+
+	// Respond to the interaction.
+	return session.Handle.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Prediction cancelled!",
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
@@ -294,10 +483,10 @@ func PredictionInteractionHandler(s *discordgo.Session, i *discordgo.Interaction
 			err = handleCancelButton(i, p, state)
 		} else if strings.HasPrefix(customId, "PredictionBetModal|") {
 			err = handleBetModal(i, p, state, now)
-			// } else if strings.HasPrefix(customId, "PredictionResolveModal|") {
-			// 	err = handleResolveModal(i, p, state)
-			// } else if strings.HasPrefix(customId, "PredictionCancelModal|") {
-			// 	err = handleCancelModal(i, p, state)
+		} else if strings.HasPrefix(customId, "PredictionResolveModal|") {
+			err = handleResolveModal(i, p, state, now)
+		} else if strings.HasPrefix(customId, "PredictionCancelModal|") {
+			err = handleCancelModal(i, p, state, now)
 		} else {
 			panic(fmt.Errorf("Unexpected prediction button custom ID: %s", customId))
 		}

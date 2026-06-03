@@ -49,7 +49,7 @@ func CreateOrUpdatePredictionMessage(p *models.Prediction, channelId string, now
 
 	if p.MessageId == "" {
 		messageSend := &discordgo.MessageSend{
-			Content:    p.DisplayString(),
+			Content:    p.DisplayString(now),
 			Components: comps,
 		}
 		message, err := session.Handle.ChannelMessageSendComplex(channelId, messageSend)
@@ -59,7 +59,7 @@ func CreateOrUpdatePredictionMessage(p *models.Prediction, channelId string, now
 		p.MessageId = message.ID
 		p.ChannelId = channelId
 	} else {
-		content := p.DisplayString()
+		content := p.DisplayString(now)
 		messageEdit := &discordgo.MessageEdit{
 			ID:         p.MessageId,
 			Channel:    p.ChannelId,

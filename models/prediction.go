@@ -41,6 +41,8 @@ type Prediction struct {
 	// The possible outcomes that folks can bet on. Externally identified via letter IDs (A, B, C, etc.),
 	// where index 0 = 'A'.
 	Outcomes []string
+	// The ID of the outcome that won (e.g. 'A'). Will be 0 if the prediction isn't resolved.
+	WinningOutcomeId rune
 	// People's bets on the various options, indexed by user ID. Each user can only bet on one outcome.
 	Bets map[string]PredictionBet
 	// The ID of the message in the server that currently holds the controls for interacting with the prediction.
@@ -100,8 +102,8 @@ func (this *Prediction) OutcomePools() []*OutcomePool {
 	return result
 }
 
-func (this *Prediction) StateString() string {
-	state := this.GetState(time.Now())
+func (this *Prediction) StateString(now time.Time) string {
+	state := this.GetState(now)
 	switch state {
 	case BettingOpen:
 		return "Active and accepting bets"
@@ -127,11 +129,11 @@ func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools []*OutcomeP
 	return theirShare * otherPoolsTotal
 }
 
-func (this *Prediction) DisplayString() string {
+func (this *Prediction) DisplayString(now time.Time) string {
+	state := this.GetState(now)
 	message := fmt.Sprintf("# Prediction - %s", this.Question)
-	message += fmt.Sprintf("\n- **%s**", this.StateString())
+	message += fmt.Sprintf("\n- **%s**", this.StateString(now))
 	message += fmt.Sprintf("\n- Created by <@%s> at `%s`", this.Creator, this.CreationTime.Format(utils.TimeFormat))
-	now := time.Now()
 	if now.After(this.BettingCloseTime) {
 		message += fmt.Sprintf("\n- Betting closed at `%s`", this.BettingCloseTime.Format(utils.TimeFormat))
 	} else {
@@ -146,8 +148,16 @@ func (this *Prediction) DisplayString() string {
 	message += "\n## Possible outcomes"
 	outcomePools := this.OutcomePools()
 	for index, outcome := range this.Outcomes {
-		id := 'A' + index
-		message += fmt.Sprintf("\n### %c. %s", id, outcome)
+		id := rune('A' + index)
+		if state == PredictionResolved {
+			if this.WinningOutcomeId == id {
+				message += fmt.Sprintf("\n### [:tada: WINNER :tada:] %c. %s", id, outcome)
+			} else {
+				message += fmt.Sprintf("\n### [LOSER]  %c. %s", id, outcome)
+			}
+		} else {
+			message += fmt.Sprintf("\n### %c. %s", id, outcome)
+		}
 		totalPool := outcomePools[index].Total
 		message += fmt.Sprintf("\n- Total pool: %s point%s",
 			utils.FormatUIFloat(totalPool), utils.Plural(totalPool))
@@ -156,10 +166,23 @@ func (this *Prediction) DisplayString() string {
 			for userId, wager := range outcomePools[index].Bets {
 				possibleGain := this.PossibleGain(this.Bets[userId], outcomePools)
 				possibleGainPercent := possibleGain / wager * 100
-				message += fmt.Sprintf("\n  - <@%s> bet %s point%s. Possible winnings: +%s (+%s%%).",
-					userId, utils.FormatUIFloat(wager), utils.Plural(wager), utils.FormatUIFloat(possibleGain),
-					utils.FormatUIFloat(possibleGainPercent),
+				message += fmt.Sprintf("\n  - <@%s> bet %s point%s",
+					userId, utils.FormatUIFloat(wager), utils.Plural(wager),
 				)
+				switch state {
+				case PredictionResolved:
+					if this.WinningOutcomeId == id {
+						message += fmt.Sprintf(", and WON: +%s (+%s%%)",
+							utils.FormatUIFloat(possibleGain), utils.FormatUIFloat(possibleGainPercent))
+					} else {
+						message += ", and LOST"
+					}
+				case PredictionCancelled:
+					message += " (refunded)"
+				default:
+					message += fmt.Sprintf(". Possible winnings: +%s (+%s%%)",
+						utils.FormatUIFloat(possibleGain), utils.FormatUIFloat(possibleGainPercent))
+				}
 			}
 		}
 	}

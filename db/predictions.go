@@ -89,6 +89,80 @@ func placeBetOnPrediction(
 	return prediction, nil
 }
 
+func resolvePrediction(
+	db *bbolt.DB,
+	predictionId models.JacuzziId,
+	winningOutcomeId rune,
+) (*models.Prediction, error) {
+	prediction := &models.Prediction{}
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(predictionsBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Couldn't resolve prediction because predictions bucket didn't exist")
+		}
+		predictionBytes := bucket.Get(models.BytesFromJacuzziId(predictionId))
+		if predictionBytes == nil {
+			return fmt.Errorf("Couldn't resolve prediction because prediction %d didn't exist", predictionId)
+		}
+		err := json.Unmarshal(predictionBytes, prediction)
+		if err != nil {
+			return err
+		}
+
+		prediction.Resolved = true
+		prediction.WinningOutcomeId = winningOutcomeId
+
+		predictionBytes, err = json.Marshal(prediction)
+		if err != nil {
+			return err
+		}
+		return bucket.Put(models.BytesFromJacuzziId(predictionId), predictionBytes)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return prediction, nil
+}
+
+func cancelPrediction(
+	db *bbolt.DB,
+	predictionId models.JacuzziId,
+) (*models.Prediction, error) {
+	prediction := &models.Prediction{}
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(predictionsBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Couldn't cancel prediction because predictions bucket didn't exist")
+		}
+		predictionBytes := bucket.Get(models.BytesFromJacuzziId(predictionId))
+		if predictionBytes == nil {
+			return fmt.Errorf("Couldn't cancel prediction because prediction %d didn't exist", predictionId)
+		}
+		err := json.Unmarshal(predictionBytes, prediction)
+		if err != nil {
+			return err
+		}
+
+		prediction.ManuallyCancelled = true
+
+		predictionBytes, err = json.Marshal(prediction)
+		if err != nil {
+			return err
+		}
+		return bucket.Put(models.BytesFromJacuzziId(predictionId), predictionBytes)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return prediction, nil
+}
+
 func StorePrediction(serverId string, prediction *models.Prediction) error {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
@@ -125,4 +199,33 @@ func PlaceBetOnPrediction(
 	defer db.Close()
 
 	return placeBetOnPrediction(db, predictionId, userId, bet)
+}
+
+func ResolvePrediction(
+	serverId string,
+	predictionId models.JacuzziId,
+	winningOutcomeId rune,
+) (*models.Prediction, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return resolvePrediction(db, predictionId, winningOutcomeId)
+}
+
+func CancelPrediction(
+	serverId string,
+	predictionId models.JacuzziId,
+) (*models.Prediction, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return cancelPrediction(db, predictionId)
 }
