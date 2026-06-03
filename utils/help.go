@@ -27,6 +27,7 @@ func Help() string {
 	result += "  - `/give <recipient> <amount> [message]` - Give someone else some of your points, optionally with a message\n"
 	result += "  - `/set-timezone <region> <city>` - Set your local timezone, which is used by other features\n"
 	result += "  - `/gamble <chance> <wager>` - Wager some of your points, gambling to maybe win back more\n"
+	result += "  - `/create-prediction` - Create a prediction that people can bet their points on\n"
 
 	result += "- Here are some other bot features with separate help pages:\n"
 	result += "  - `/tama-help` - Info on the Tamas minigame where you hatch pets from eggs and care for them\n"
@@ -37,7 +38,7 @@ func Help() string {
 func TamaHelp() string {
 	var result string
 
-	result += "Tama is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
+	result += "Tamas is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
 		"play with them to keep them happy and productive. Your Tama pets will interact with other people's pets " +
 		"and develop relationships with them. If Tamas like each other enough, they may fall in love! " +
 		"If you neglect your pets, **they will die at -10 mood!** " +

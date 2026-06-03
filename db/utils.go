@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/janimationd/JacuzziBot/utils"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -123,7 +124,7 @@ func backupBuckets(serverId string, bucketNames []string) (string, error) {
 	}
 	defer db.Close()
 
-	backupTime := time.Now().Format("2006-01-02_15-04-05.000000")
+	backupTime := time.Now().Format(utils.EventIdTimeFormat)
 	path := GetBackupsDirForServer(serverId) + backupTime + "/"
 
 	for _, bucketName := range bucketNames {
