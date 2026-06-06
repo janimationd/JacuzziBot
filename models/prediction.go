@@ -131,7 +131,7 @@ func (this *Prediction) PossibleGain(bet PredictionBet, outcomePools []*OutcomeP
 
 func (this *Prediction) DisplayString(now time.Time) string {
 	state := this.GetState(now)
-	message := fmt.Sprintf("# Prediction - %s", this.Question)
+	message := fmt.Sprintf("# Prediction #%d - %s", this.Id, this.Question)
 	message += fmt.Sprintf("\n- **%s**", this.StateString(now))
 	message += fmt.Sprintf("\n- Created by <@%s> at `%s`", this.Creator, this.CreationTime.Format(utils.TimeFormat))
 	if now.After(this.BettingCloseTime) {

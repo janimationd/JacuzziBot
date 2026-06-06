@@ -89,6 +89,51 @@ func placeBetOnPrediction(
 	return prediction, nil
 }
 
+func raiseBetOnPrediction(
+	db *bbolt.DB,
+	predictionId models.JacuzziId,
+	userId string,
+	wager float64,
+) (*models.Prediction, error) {
+	prediction := &models.Prediction{}
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte(predictionsBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Couldn't raise bet on prediction because predictions bucket didn't exist")
+		}
+		predictionBytes := bucket.Get(models.BytesFromJacuzziId(predictionId))
+		if predictionBytes == nil {
+			return fmt.Errorf("Couldn't raise bet on prediction because prediction %d didn't exist", predictionId)
+		}
+		err := json.Unmarshal(predictionBytes, prediction)
+		if err != nil {
+			return err
+		}
+		existingWager := prediction.Bets[userId].Wager
+		if existingWager == 0 {
+			return fmt.Errorf("You haven't bet on this prediction yet, so you can't raise your wager.")
+		}
+
+		// Modify wager and then store back to map (no map entry rvalues smh)
+		bet := prediction.Bets[userId]
+		bet.Wager += wager
+		prediction.Bets[userId] = bet
+
+		predictionBytes, err = json.Marshal(prediction)
+		if err != nil {
+			return err
+		}
+		return bucket.Put(models.BytesFromJacuzziId(predictionId), predictionBytes)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return prediction, nil
+}
+
 func resolvePrediction(
 	db *bbolt.DB,
 	predictionId models.JacuzziId,
@@ -199,6 +244,22 @@ func PlaceBetOnPrediction(
 	defer db.Close()
 
 	return placeBetOnPrediction(db, predictionId, userId, bet)
+}
+
+func RaiseBetOnPrediction(
+	serverId string,
+	predictionId models.JacuzziId,
+	userId string,
+	wager float64,
+) (*models.Prediction, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	return raiseBetOnPrediction(db, predictionId, userId, wager)
 }
 
 func ResolvePrediction(
