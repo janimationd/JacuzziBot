@@ -7,6 +7,7 @@ import (
 
 	"github.com/janimationd/JacuzziBot/errs"
 	"github.com/janimationd/JacuzziBot/models"
+	"github.com/janimationd/JacuzziBot/utils"
 )
 
 const usersBucketName string = "Users"
@@ -95,7 +96,7 @@ func setUserTimezone(db *bolt.DB, userId string, timezone string) (models.User, 
 	return user, err
 }
 
-func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.User, error) {
+func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64, allowDebt bool) (models.User, error) {
 	var user models.User
 
 	// Encapsulate all logic in a transaction to avoid race conditions
@@ -123,12 +124,10 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 		originalPoints = user.Points
 		user.Points += pointsDelta
 
-		// If their new point value would be negative, reject the action.
-		if user.Points < 0 {
+		// If their new point value would be more negative, and debt isn't allowed, reject the action.
+		if pointsDelta < 0 && user.Points < 0 && !allowDebt {
 			return &errs.InsufficientPointsError{
-				CurrentPoints: originalPoints,
-				// Since (hopefully) the only way we would arrive at a negative value is a negative delta,
-				// here we invert it to get a positive value.
+				CurrentPoints:  originalPoints,
 				RequiredPoints: -pointsDelta,
 			}
 		}
@@ -140,7 +139,8 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64) (models.U
 		}
 		err = bucket.Put([]byte(userId), userJson)
 		if err == nil {
-			log.Printf("User %s's points were modified by %.2f.\n", user.UserId, pointsDelta)
+			log.Printf("User %s's points were modified by %s, now at %s.\n",
+				user.UserId, utils.FormatUIFloat(pointsDelta), utils.FormatUIFloat(user.Points))
 		}
 		return err
 	})
@@ -166,7 +166,13 @@ func GetUser(serverId string, userId string) (models.User, error) {
 	return getOrCreateUser(db, userId)
 }
 
+// Don't allow debt
 func ModifyUserPoints(serverId string, userId string, pointsDelta float64) (models.User, error) {
+	return ModifyUserPointsWithDebt(serverId, userId, pointsDelta, false)
+}
+
+// Maybe allow debt
+func ModifyUserPointsWithDebt(serverId string, userId string, pointsDelta float64, allowDebt bool) (models.User, error) {
 	var user models.User
 
 	// Create or open a server-specific database file
@@ -176,7 +182,7 @@ func ModifyUserPoints(serverId string, userId string, pointsDelta float64) (mode
 	}
 	defer db.Close()
 
-	return modifyUserPoints(db, userId, pointsDelta)
+	return modifyUserPoints(db, userId, pointsDelta, allowDebt)
 }
 
 func SetUserTimezone(serverId string, userId string, timezone string) (models.User, error) {

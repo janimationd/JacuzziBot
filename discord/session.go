@@ -162,9 +162,18 @@ func Open() error {
 		return err
 	}
 
+	// Configure session to allow caching of message details.
+	// We only do this to allow us to deduct points from users who delete their messages, otherwise
+	// we can't know the author of a deleted message.
+	session.Handle.State.MaxMessageCount = 200
+	session.Handle.Identify.Intents =
+		session.Handle.Identify.Intents | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent
+
 	// Register handlers
 	session.Handle.AddHandler(handlers.MessageCreateHandler)
-	session.Handle.AddHandler(handlers.ReactionHandler)
+	session.Handle.AddHandler(handlers.MessageDeleteHandler)
+	session.Handle.AddHandler(handlers.AddReactionHandler)
+	session.Handle.AddHandler(handlers.RemoveReactionHandler)
 	session.Handle.AddHandler(handlers.VoiceCallHandler)
 
 	// Open connection
