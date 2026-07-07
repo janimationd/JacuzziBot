@@ -517,17 +517,20 @@ func deleteTamaTransfer(db *bolt.DB, tamaId models.JacuzziId) error {
 }
 
 // Choose a random interaction with a very specific probabilty distribution. The second return value will be true if
-// instigator is a Bully, and that fact caused it to bully the target.
+// instigator is a Bully, and that fact caused it to pick on the target.
 func chooseRandomInteraction(instigator *models.Tama, target *models.Tama) (models.TamaInteraction, bool) {
 	weights := make([]int, models.TamaInteractionMax)
-	weights[models.Play] = 5
-	weights[models.Gift] = 2
-	weights[models.PickOn] = 1
+	playBaseWeight := 4
+	giftBaseWeight := 2
+	pickOnBaseWeight := 2
+	weights[models.Play] = playBaseWeight
+	weights[models.Gift] = giftBaseWeight
+	weights[models.PickOn] = pickOnBaseWeight
 
-	// Bullies have twice the chance to pick on other pets.
+	// Bullies have increased chance to pick on other pets.
 	isABully := instigator.NegativeTraits.Contains(models.Bully)
 	if isABully {
-		weights[models.PickOn] *= 2
+		weights[models.PickOn] += 1
 	}
 
 	// When a pet is courting another, it has twice the chance to give gifts.
@@ -544,7 +547,7 @@ func chooseRandomInteraction(instigator *models.Tama, target *models.Tama) (mode
 	for i := range models.TamaInteractionMax {
 		if roll < weights[i] {
 			// If this is a PickOn from a Bully which wouldn't have happened otherwise.
-			if i == models.PickOn && isABully && roll == 1 {
+			if i == models.PickOn && isABully && roll == pickOnBaseWeight {
 				return i, true
 			}
 			return i, false
@@ -557,7 +560,7 @@ func chooseRandomInteraction(instigator *models.Tama, target *models.Tama) (mode
 
 func chooseRandomGiftOutcome() models.GiftOutcome {
 	weights := make([]int, models.GiftOutcomeMax)
-	weights[models.Likes] = 4
+	weights[models.Likes] = 3
 	weights[models.Indifferent] = 2
 	weights[models.Hates] = 1
 
@@ -589,18 +592,18 @@ func documentDirectionalInteractionResult(
 	// Document primary and secondary effects
 	if desiredChange != 0 {
 		if desiredChange+result.FriendlyBonus == result.FinalDelta {
-			summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d.",
+			summary += fmt.Sprintf("\n%s  - %s :arrow_right: %s attitude **%s%d**",
 				indent, this.GetNameAndId(), other.GetNameAndId(),
 				utils.SignString(result.FinalDelta), result.FinalDelta)
 		} else if result.FinalDelta == 0 {
 			if result.LoveEvent == models.LovePreventedDecrease {
 				summary += fmt.Sprintf(
-					"\n%s  - Since they're in love, %s avoided losing %d attitude towards %s (66%% chance).",
+					"\n%s  - Since they're in love, %s avoided losing %d attitude towards %s :people_hugging: (66%% chance).",
 					indent, this.GetNameAndId(), desiredChange, other.GetNameAndId())
 			} else if result.AnnoyingBlockedIncrease {
 				summary += fmt.Sprintf(
-					"\n%s  - %s's attitude towards %s didn't increase because of %s's Annoying trait (33%% chance).",
-					indent, this.GetNameAndId(), other.GetNameAndId(), other.GetNameAndId())
+					"\n%s  - %s's Annoying trait blocked attitude increase (33%% chance).",
+					indent, other.GetNameAndId())
 			} else {
 				var verb string
 				var limit models.RelationshipScore
@@ -611,7 +614,7 @@ func documentDirectionalInteractionResult(
 					verb = "worsen"
 					limit = -models.TamaRelationshipScoreLimit
 				}
-				summary += fmt.Sprintf("\n%s  - %s's attitude towards %s cannot %s any more (already at %s%d).",
+				summary += fmt.Sprintf("\n%s  - %s :arrow_right: %s cannot %s any more (already at %s%d).",
 					indent, this.GetNameAndId(), other.GetNameAndId(), verb, utils.SignString(limit), limit)
 			}
 		} else {
@@ -621,21 +624,20 @@ func documentDirectionalInteractionResult(
 			} else {
 				limit = -models.TamaRelationshipScoreLimit
 			}
-			summary += fmt.Sprintf("\n%s  - %s's attitude towards %s changed by %s%d (capped at %s%d).",
+			summary += fmt.Sprintf("\n%s  - %s :arrow_right: %s attitude **%s%d** (capped at %s%d)",
 				indent, this.GetNameAndId(), other.GetNameAndId(),
 				utils.SignString(result.FinalDelta), result.FinalDelta,
 				utils.SignString(limit), limit)
 		}
 	}
 	if result.FriendlyBonus != 0 {
-		summary += fmt.Sprintf(" This included a %s%d bonus because %s has the Friendly trait (33%% chance).",
+		summary += fmt.Sprintf(" Included %s%d bonus because of %s's' Friendly trait (33%% chance).",
 			utils.SignString(result.FriendlyBonus), result.FriendlyBonus,
 			other.GetNameAndId())
 	}
 	if result.MoodDelta != 0 {
-		summary += fmt.Sprintf("\n%s    - Because of this %s's mood also changed by %s%d (33%% chance).",
-			indent, this.GetNameAndId(),
-			utils.SignString(result.MoodDelta), result.MoodDelta)
+		summary += fmt.Sprintf("\n%s    - Also %s%d to %s's mood (33%% chance).",
+			indent, utils.SignString(result.MoodDelta), result.MoodDelta, this.GetNameAndId())
 		if result.JustDied {
 			summary += fmt.Sprintf("\n%s      - **Because of this %s has become so sad it died!** :skull:",
 				indent, this.GetNameAndId())
@@ -719,10 +721,10 @@ func tamaInteract(
 			desiredTargetRelationshipChange = 1
 			targetResult = target.ModifyRelationshipScoreWith(
 				instigator, desiredTargetRelationshipChange, interaction)
-			result.Summary += fmt.Sprintf("**%s played with %s**, and they had fun!",
+			result.Summary += fmt.Sprintf("**%s played with %s**!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		case models.Gift:
-			result.Summary += fmt.Sprintf("**%s gave %s a gift**, and %s ",
+			result.Summary += fmt.Sprintf("**%s gave %s a gift, and %s** ",
 				instigator.GetNameAndId(), target.GetNameAndId(), target.GetNameAndId())
 			// Choose the outcome of the gift giving
 			giftOutcome := chooseRandomGiftOutcome()
@@ -756,7 +758,7 @@ func tamaInteract(
 			desiredTargetRelationshipChange = -2
 			targetResult = target.ModifyRelationshipScoreWith(
 				instigator, desiredTargetRelationshipChange, interaction)
-			result.Summary += fmt.Sprintf("**%s picked on %s**, what a dick!",
+			result.Summary += fmt.Sprintf("**%s picked on %s**!",
 				instigator.GetNameAndId(), target.GetNameAndId())
 		default:
 			panic(fmt.Sprintf("Unknown TamaInteraction %d!", interaction))
@@ -765,7 +767,7 @@ func tamaInteract(
 		// Document any special reasons for the interaction
 		if bullyTraitCausedPickOn {
 			result.Summary += fmt.Sprintf(
-				"\n%s  - This only happened because %s has the Bully trait (doubled option weight).",
+				"\n%s  - This only happened because of %s's Bully trait.",
 				indent, instigator.GetNameAndId())
 		}
 

@@ -38,7 +38,7 @@ func Help() string {
 func TamaHelp() string {
 	var result string
 
-	result += "Tamas is a minigame where you buy eggs, care for them until they hatch, and then feed and " +
+	result += "Tamas is a minigame where you buy eggs, care for them to make them hatch, and then feed and " +
 		"play with them to keep them happy and productive. Your Tama pets will interact with other people's pets " +
 		"and develop relationships with them. If Tamas like each other enough, they may fall in love! " +
 		"If you neglect your pets, **they will die at -10 mood!** " +
@@ -53,8 +53,10 @@ func TamaHelp() string {
 		"but you can assign them a name after they hatch instead.\n"
 	result += fmt.Sprintf("- `/care-tama` - Care for a Tama. "+
 		"If it hasn't hatched yet, it gets closer to hatching (%s cooldown). "+
+		"You must care for an egg %d times before it hatches. "+
 		"If it has already hatched, you play with the Tama and improve its mood (%s cooldown).\n",
-		FormatUIDuration(constants.EggCareCooldown), FormatUIDuration(constants.TamaCareCooldown))
+		FormatUIDuration(constants.EggCareCooldown), constants.EggCareHatchThreshold,
+		FormatUIDuration(constants.TamaCareCooldown))
 	result += fmt.Sprintf("- `/feed-tama` - Buy 1 food **for %s point%s** and feed a Tama. "+
 		"You need to feed each Tama you own every calendar day (your local time). "+
 		"Every day that you don't, hunger increases by 1. "+

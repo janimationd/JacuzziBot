@@ -324,7 +324,7 @@ func (this *Tama) HasHatched() bool {
 // Get the Name and Id of the Tama (if it has a name) or just its Id otherwise.
 func (this *Tama) GetNameAndId() string {
 	if this.Name != "" {
-		return fmt.Sprintf("\"%s\" (#%d)", this.Name, this.Id)
+		return fmt.Sprintf("%s (#%d)", this.Name, this.Id)
 	} else {
 		return fmt.Sprintf("#%d", this.Id)
 	}

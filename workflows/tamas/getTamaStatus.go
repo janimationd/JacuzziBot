@@ -142,7 +142,7 @@ func getRelationshipsString(this *models.Tama) string {
 	for k, v := range this.Relationships {
 		tama, err := db.GetTama(this.ServerId, k)
 		if err == nil {
-			result += fmt.Sprintf("  - %s - %s\n", tama.GetNameAndId(), getRelationshipString(k, v, this.LoveTarget))
+			result += fmt.Sprintf("  - %s %s\n", getRelationshipString(k, v, this.LoveTarget), tama.GetNameAndId())
 		} else {
 			// Swallow and log
 			log.Printf("Couldn't fetch relationship target Tama details: %s\n", err.Error())
