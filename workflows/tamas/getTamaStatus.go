@@ -219,7 +219,7 @@ func GetTamaStatus(this *models.Tama, timezone *time.Location, headerLevel strin
 		result += fmt.Sprintf("- It is %s\n", getHungerString(this, timezone))
 
 		// Age
-		age := time.Since(time.Unix(this.HatchedTime, 0))
+		age := this.Age()
 		if this.IsAlive() && age < time.Minute {
 			result += "- It is freshly hatched!\n"
 		} else if this.IsAlive() {

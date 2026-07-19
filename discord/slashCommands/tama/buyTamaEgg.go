@@ -23,7 +23,6 @@ var BuyTamaEgg = models.SlashCommand{
 	},
 	Handler: func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		const cost float64 = constants.TamaEggPurchaseCost
-		// Calculate the cost of buying another egg
 		user, err := db.GetUser(interaction.GuildID, interaction.Member.User.ID)
 
 		var message string
@@ -119,8 +118,8 @@ func HandleBuyTamaEggConfirmPurchase(session *discordgo.Session, interaction *di
 	err = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
-			Content:    responseMessage,
-			Components: []discordgo.MessageComponent{},
+			Content: responseMessage,
+			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
 	if err != nil {
@@ -140,14 +139,13 @@ func HandleBuyTamaEggCancelPurchase(session *discordgo.Session, interaction *dis
 	err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
-			Content:    "Cancelled.",
-			Components: []discordgo.MessageComponent{},
-			Flags:      discordgo.MessageFlagsEphemeral,
+			Content: "Cancelled.",
+			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
 	if err == nil {
 		log.Println("Tama egg purchase cancelled.")
 	} else {
-		log.Println("Failed to cleanup egg purchase message:", err.Error())
+		log.Println("Failed to send egg purchase response:", err.Error())
 	}
 }

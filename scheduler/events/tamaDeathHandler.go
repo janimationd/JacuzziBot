@@ -67,9 +67,16 @@ func TamaDeathHandler(event *models.ScheduledEvent, _ time.Time, tx *bbolt.Tx) b
 			continue
 		}
 
-		summary += fmt.Sprintf("\n- %s's mood changed by %s%d in reaction (attitude towards it was %s%d)",
+		relationshipInfo := ""
+		if result.WasInLove {
+			relationshipInfo = "because they were in love :broken_heart:"
+		} else {
+			relationshipInfo = fmt.Sprintf("(attitude towards it was %s%d)",
+				utils.SignString(relationshipScore), relationshipScore)
+		}
+		summary += fmt.Sprintf("\n- %s's mood changed by %s%d in reaction %s",
 			tama.GetNameAndId(), utils.SignString(result.FinalMoodDelta), result.FinalMoodDelta,
-			utils.SignString(relationshipScore), relationshipScore)
+			relationshipInfo)
 	}
 
 	// Send the summary message to the channel

@@ -13,15 +13,10 @@ func BuyTamaEggWorkflow(serverId string, channelId string, userId string) (model
 	var tama models.Tama
 	var user models.User
 
-	user, err := db.GetUser(serverId, userId)
-	if err != nil {
-		log.Printf("Could not fetch user details for %s: %s\n", userId, err.Error())
-	}
-
 	cost := constants.TamaEggPurchaseCost
 
 	// Attempt to buy an egg
-	user, err = db.ModifyUserPoints(serverId, userId, -cost)
+	user, err := db.ModifyUserPoints(serverId, userId, -cost)
 	if err != nil {
 		log.Println("Could not modify user points:", err)
 		return tama, user, err

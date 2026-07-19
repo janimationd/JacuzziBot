@@ -46,6 +46,8 @@ func registerInteractionCreateHandlers() {
 				tama.HandleBuyTamaEggConfirmPurchase(s, i)
 			case tama.BuyTamaEggCancelPurchaseId:
 				tama.HandleBuyTamaEggCancelPurchase(s, i)
+			case tama.SellTamaCancelSaleId:
+				tama.HandleSellTamaCancelSale(s, i)
 			// Handle custom IDs that have information appended to them
 			default:
 				if strings.HasPrefix(customId, tama.TransferTamaAcceptTransferId) {
@@ -54,6 +56,8 @@ func registerInteractionCreateHandlers() {
 					tama.HandleTransferTamaCancelTransfer(s, i)
 				} else if strings.HasPrefix(customId, "Prediction") {
 					handlers.PredictionInteractionHandler(s, i)
+				} else if strings.HasPrefix(customId, tama.SellTamaConfirmSaleId) {
+					tama.HandleSellTamaConfirmSale(s, i)
 				}
 			}
 		case discordgo.InteractionModalSubmit:
@@ -83,6 +87,7 @@ func registerSlashCommands() {
 	add(&commands, &tama.TamaHelp)
 	add(&commands, &tama.RegisterTamaChannel)
 	add(&commands, &tama.BuyTamaEgg)
+	add(&commands, &tama.SellTama)
 	//add(&commands, &tama.ClaimTamaEgg)
 	add(&commands, &tama.TransferTama)
 	add(&commands, &tama.NameTama)

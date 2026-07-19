@@ -96,7 +96,7 @@ var TransferTama = models.SlashCommand{
 		}
 
 		if errorMessage == "" {
-			message := fmt.Sprintf("<@%s> wants to transfer Tama #%d to <@%s>.", userId, tamaId, newOwnerId)
+			message := fmt.Sprintf("<@%s> wants to transfer Tama %s to <@%s>.", userId, tama.GetNameAndId(), newOwnerId)
 			acceptButtonIdWithArgs := fmt.Sprintf("%s|%d", TransferTamaAcceptTransferId, tamaId)
 			cancelButtonIdWithArgs := fmt.Sprintf("%s|%d", TransferTamaCancelTransferId, tamaId)
 
@@ -143,10 +143,7 @@ func HandleTransferTamaAcceptTransfer(session *discordgo.Session, interaction *d
 	userId := interaction.Member.User.ID
 
 	customId := interaction.MessageComponentData().CustomID
-	tamaId, err := models.ExtractJacuzziIdFromCustomId(customId)
-	if err != nil {
-		errorMessage = err.Error()
-	}
+	tamaId := models.ParseCustomIdToJacuzziId(customId)
 
 	var tamaTransfer *models.TamaTransfer
 	if errorMessage == "" {
@@ -194,10 +191,7 @@ func HandleTransferTamaCancelTransfer(session *discordgo.Session, interaction *d
 	userId := interaction.Member.User.ID
 
 	customId := interaction.MessageComponentData().CustomID
-	tamaId, err := models.ExtractJacuzziIdFromCustomId(customId)
-	if err != nil {
-		errorMessage = err.Error()
-	}
+	tamaId := models.ParseCustomIdToJacuzziId(customId)
 
 	var tamaTransfer *models.TamaTransfer
 	if errorMessage == "" {

@@ -50,7 +50,7 @@ var NameTama = models.SlashCommand{
 		if err != nil {
 			errorMessage = "Couldn't load user details" + constants.ErrorReportMessageSuffix
 		} else {
-			invalidName, err := regexp.MatchString(fmt.Sprintf(".*[%s].*", constants.TamaNameDisallowedCharacters), newName)
+			invalidName, err := regexp.MatchString(constants.InputDenylistRegex, newName)
 			if err != nil {
 				errorMessage = fmt.Sprintf("Couldn't validate new name string: %s", err.Error())
 			} else if intId <= int64(models.NoId) {
@@ -63,7 +63,7 @@ var NameTama = models.SlashCommand{
 				errorMessage = fmt.Sprintf("You must run this command in the <#%s> channel.", registeredChannelId)
 			} else if invalidName {
 				errorMessage = fmt.Sprintf("Tama names must not contain any forbidden characters (``%s``) or newlines.",
-					constants.TamaNameDisallowedCharactersForPrinting)
+					constants.InputDenylistForPrinting)
 			} else if utf8.RuneCountInString(newName) > constants.MaxTamaNameLength {
 				errorMessage = fmt.Sprintf("Tama names cannot exceed %d characters. Your name uses %d.",
 					constants.MaxTamaNameLength, utf8.RuneCountInString(newName))

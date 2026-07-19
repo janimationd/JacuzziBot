@@ -10,10 +10,6 @@ const OnlyParentOwnersCanClaimSeconds int64 = OnlyParentOwnersCanClaimDays * 24 
 // Cannot name a Tama with more characters than this.
 const MaxTamaNameLength = 64
 
-// Characters that cannot be used in a Tama name.
-const TamaNameDisallowedCharacters = "*_~#:\\[\\](){}`<>@\\/\\\\\\n\\r"
-const TamaNameDisallowedCharactersForPrinting = "*_~#:[](){}`<>@/\\"
-
 // After the egg has been cared for this many times, it hatches.
 const EggCareHatchThreshold uint8 = 3
 
@@ -22,3 +18,6 @@ const EggCareCooldown = 8 * time.Hour
 
 // The cooldown period for caring for a hatched Tama
 const TamaCareCooldown = 8 * time.Hour
+
+// How much mood damage a Tama will take if the target of its love is sold.
+const TamaSaleLoveTargetMoodDamage = 10

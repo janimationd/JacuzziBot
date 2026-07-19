@@ -550,12 +550,10 @@ func PredictionInteractionHandler(s *discordgo.Session, i *discordgo.Interaction
 	}
 	log.Printf("Prediction interaction with ID %s received.\n", customId)
 
-	predictionId, err := models.ExtractJacuzziIdFromCustomId(customId)
-	if err != nil {
-		errorMessage = fmt.Sprintf("Couldn't extract prediction Id from button ID: %s", err.Error())
-	}
+	predictionId := models.ParseCustomIdToJacuzziId(customId)
 
 	var p *models.Prediction
+	var err error
 	if errorMessage == "" {
 		p, err = db.GetPrediction(serverId, predictionId)
 		if err != nil {

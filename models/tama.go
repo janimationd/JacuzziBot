@@ -379,8 +379,13 @@ func (this *Tama) GetHourlyPointAward() float64 {
 
 // Get a string describing the Tama's mood.
 func (this *Tama) GetMoodString() string {
+	return PreviewMoodString(this.Mood, this.Id)
+}
+
+// Preview the string description for a mood value.
+func PreviewMoodString(mood Mood, id JacuzziId) string {
 	moodDesc := ""
-	switch this.Mood {
+	switch mood {
 	case -10:
 		moodDesc = "dead"
 	case -9, -8:
@@ -409,17 +414,17 @@ func (this *Tama) GetMoodString() string {
 
 	if moodDesc == "" {
 		// Shouldn't get here
-		log.Printf("Tama #%d had an invalid mood value %d.\n", this.Id, this.Mood)
-		if this.Mood < -TamaMoodLimit {
+		log.Printf("Tama #%d had an invalid mood value %d.\n", id, mood)
+		if mood < -TamaMoodLimit {
 			moodDesc = "dead"
-		} else if this.Mood > TamaMoodLimit {
+		} else if mood > TamaMoodLimit {
 			moodDesc = "**glowing**"
 		} else {
 			moodDesc = "confused"
 		}
 	}
 
-	return fmt.Sprintf("%s (mood %s%d)", moodDesc, utils.SignString(this.Mood), this.Mood)
+	return fmt.Sprintf("%s (mood %s%d)", moodDesc, utils.SignString(mood), mood)
 }
 
 // Whether this Tama is courting another.
@@ -430,4 +435,18 @@ func (this *Tama) IsCourting(other *Tama) bool {
 // Whether this tama is in love with another.
 func (this *Tama) Loves(other *Tama) bool {
 	return this.LoveTarget == other.Id
+}
+
+// Calculate the Tama's age
+func (this *Tama) Age() time.Duration {
+	return time.Since(time.Unix(this.HatchedTime, 0))
+}
+
+// Calculate the Tama's sell value
+func (this *Tama) SellValueAndEquation() (float64, string) {
+	daysOld := this.Age().Hours() / 24
+	sellValue := daysOld * (1 + (float64(this.Mood) / float64(TamaMoodLimit)))
+	equation := fmt.Sprintf("%s = daysOld:%s * (1 + (mood:%d / maxMood:%d))",
+		utils.FormatUIFloat(sellValue), utils.FormatUIFloat(daysOld), this.Mood, TamaMoodLimit)
+	return sellValue, equation
 }

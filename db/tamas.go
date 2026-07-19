@@ -825,6 +825,8 @@ type TamaDeathReactionResult struct {
 	Tama *models.Tama
 	// The amount by which the Tama's mood changed.
 	FinalMoodDelta models.Mood
+	// Whether this was in love with the dead Tama.
+	WasInLove bool
 }
 
 func tamaReactToDeath(
@@ -857,12 +859,23 @@ func tamaReactToDeath(
 		relationshipScore := result.Tama.Relationships[deadTamaId]
 		moodDelta := models.Mood(relationshipScore * -2)
 
+		if result.Tama.LoveTarget == deadTamaId {
+			// Clear out its love target if it was this dead Tama
+			result.Tama.LoveTarget = models.NoId
+			// It also takes even more mood damage
+			moodDelta -= models.Mood(relationshipScore)
+			result.WasInLove = true
+		}
+
 		// Don't allow outright death due to this, cap at one above death.
 		moodDiffToDeath := -models.TamaMoodLimit - result.Tama.Mood
 		moodDelta = max(moodDelta, moodDiffToDeath+1)
 
 		modifyMoodResult := result.Tama.ModifyMood(moodDelta)
 		result.FinalMoodDelta = modifyMoodResult.FinalDelta
+
+		// Remove the dead Tama's entry in this Tama's relationships map
+		delete(result.Tama.Relationships, deadTamaId)
 
 		tamaBytes, err = json.Marshal(result.Tama)
 		if err != nil {
@@ -961,6 +974,69 @@ func tamaReactToHunger(
 	}
 
 	return result, nil
+}
+
+type DeleteTamaResult struct {
+	// The updated state of the tama that was in love with the one that was deleted.
+	LoveTarget *models.Tama
+}
+
+func deleteTama(db *bbolt.DB, tamaId models.JacuzziId) (DeleteTamaResult, error) {
+	result := DeleteTamaResult{}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(tamaBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Couldn't delete Tama because Tamas bucket doesn't exist.")
+		}
+		tamaIdBytes := models.BytesFromJacuzziId(tamaId)
+
+		// Delete the tama from the DB
+		err := bucket.Delete(tamaIdBytes)
+		if err != nil {
+			return err
+		}
+
+		// For each other remaining Tama:
+		// 1. Remove relationship score entires towards the deleted Tama
+		// 2. If it was in love with the deleted Tama, damage its mood (but don't kill it).
+		return bucket.ForEach(func(k, v []byte) error {
+			otherTamaId := models.JacuzziIdFromBytes(k)
+			if otherTamaId == models.NoId {
+				return fmt.Errorf("Failed to extract Tama Id %s during deletion\n", k)
+			}
+
+			otherTama := &models.Tama{}
+			err = json.Unmarshal(v, otherTama)
+			if err != nil {
+				log.Printf("Failed to process Tama %d during deletion: %s\n", otherTamaId, err.Error())
+				return err
+			}
+
+			// The Tama in love with this one takes mood damage
+			if otherTama.LoveTarget == tamaId {
+				result.LoveTarget = otherTama
+				otherTama.Mood = max(otherTama.Mood-constants.TamaSaleLoveTargetMoodDamage, -models.TamaMoodLimit+1)
+				otherTama.LoveTarget = models.NoId
+			}
+
+			// Delete the other tama's relationship entry towards this one
+			delete(otherTama.Relationships, tamaId)
+
+			otherTamaBytes, err := json.Marshal(otherTama)
+			if err != nil {
+				return err
+			}
+
+			return bucket.Put(k, otherTamaBytes)
+		})
+	})
+
+	if err != nil {
+		log.Printf("Couldn't delete Tama: %s\n", err.Error())
+	}
+
+	return result, err
 }
 
 // Public methods
@@ -1197,6 +1273,18 @@ func TamaReactToHunger(
 	defer db.Close()
 
 	return tamaReactToHunger(db, tamaId, ownerTimezone)
+}
+
+// Delete the given Tama from the DB. This is permanent!
+func DeleteTama(serverId string, tamaId models.JacuzziId) (DeleteTamaResult, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return DeleteTamaResult{}, err
+	}
+	defer db.Close()
+
+	return deleteTama(db, tamaId)
 }
 
 func BackupTamaBuckets(serverId string) (string, error) {
