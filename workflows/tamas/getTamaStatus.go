@@ -262,6 +262,10 @@ func GetTamaStatus(this *models.Tama, timezone *time.Location, headerLevel strin
 			result += "- Relationships:\n"
 			result += getRelationshipsString(this)
 		}
+
+		// Sell value
+		sellValue, _ := this.SellValueAndEquation()
+		result += fmt.Sprintf("- Sell value: %s point%s\n", utils.FormatUIFloat(sellValue), utils.Plural(sellValue))
 	}
 
 	// When can it next be cared for?
