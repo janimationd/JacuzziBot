@@ -287,9 +287,9 @@ func (this *Tama) ModifyRelationshipScoreWith(
 		loveEvent = FellInLove
 	}
 
-	// Check for falling out of love
-	if (this.Relationships[other.Id] <= 0 ||
-		other.Relationships[this.Id] <= 0) &&
+	// Check for falling out of love (happens when either relationship score drops to +2 or less)
+	if (this.Relationships[other.Id] <= 2 ||
+		other.Relationships[this.Id] <= 2) &&
 		this.LoveTarget == other.Id && other.LoveTarget == this.Id {
 		this.LoveTarget = NoId
 		other.LoveTarget = NoId
