@@ -82,6 +82,7 @@ func registerSlashCommands() {
 	add(&commands, &slashCommands.Gamble)
 	add(&commands, &slashCommands.Award)
 	add(&commands, &slashCommands.CreatePrediction)
+	add(&commands, &slashCommands.Roll)
 
 	// Tama minigame commands
 	add(&commands, &tama.TamaHelp)
