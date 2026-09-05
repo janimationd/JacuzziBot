@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"log"
 
 	bolt "go.etcd.io/bbolt"
@@ -153,13 +154,72 @@ func modifyUserPoints(db *bolt.DB, userId string, pointsDelta float64, allowDebt
 	return user, err
 }
 
-func GetUser(serverId string, userId string) (models.User, error) {
+func modifyUserFlairLevel(
+	db *bolt.DB,
+	userId string,
+	expectedCurrentFlair models.FlairLevel,
+	targetFlair models.FlairLevel,
+) (models.User, float64, error) {
+	var pointsDiff float64
 	var user models.User
 
+	if targetFlair >= models.FlairMax || targetFlair < models.FlairNone {
+		return user, pointsDiff, fmt.Errorf("Target flair %d is invalid.", targetFlair)
+	}
+
+	err := db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(usersBucketName))
+		if bucket == nil {
+			return fmt.Errorf("Users bucket didn't exist when trying to modify user flair")
+		}
+		userBytes := bucket.Get([]byte(userId))
+		var err error
+		user, err = models.FromJsonBytes[models.User](userBytes)
+		if err != nil {
+			return err
+		}
+
+		currentFlair := user.Flair
+		if expectedCurrentFlair != currentFlair {
+			return fmt.Errorf("Your flair level is different than it was when you initiated the request. " +
+				"Please cancel the request and start another.")
+		}
+		if currentFlair == targetFlair {
+			return fmt.Errorf("Your flair is already at the requested level.")
+		}
+
+		currentFlairProps := models.FlairProps[currentFlair]
+		targetFlairProps := models.FlairProps[targetFlair]
+		pointsDiff = currentFlairProps.TotalPointCost - targetFlairProps.TotalPointCost
+
+		// They will be paying points to upgrade, so make sure they have enough
+		if pointsDiff < 0 && user.Points+pointsDiff < 0 {
+			return fmt.Errorf("You need %s point%s to upgrade your flair, but you only have %s!",
+				utils.FormatUIFloat(-pointsDiff), utils.Plural(-pointsDiff), utils.FormatUIFloat(user.Points))
+		}
+
+		user.Points += pointsDiff
+		user.Flair = targetFlair
+
+		userBytes, err = models.ToJsonBytes(user)
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(userId), userBytes)
+	})
+
+	if err != nil {
+		log.Printf("Couldn't modify user flair: %s\n", err.Error())
+	}
+
+	return user, pointsDiff, err
+}
+
+func GetUser(serverId string, userId string) (models.User, error) {
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
-		return user, err
+		return models.User{}, err
 	}
 	defer db.Close()
 
@@ -173,12 +233,10 @@ func ModifyUserPoints(serverId string, userId string, pointsDelta float64) (mode
 
 // Maybe allow debt
 func ModifyUserPointsWithDebt(serverId string, userId string, pointsDelta float64, allowDebt bool) (models.User, error) {
-	var user models.User
-
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
-		return user, err
+		return models.User{}, err
 	}
 	defer db.Close()
 
@@ -186,14 +244,28 @@ func ModifyUserPointsWithDebt(serverId string, userId string, pointsDelta float6
 }
 
 func SetUserTimezone(serverId string, userId string, timezone string) (models.User, error) {
-	var user models.User
-
 	// Create or open a server-specific database file
 	db, err := getDb(serverId)
 	if err != nil {
-		return user, err
+		return models.User{}, err
 	}
 	defer db.Close()
 
 	return setUserTimezone(db, userId, timezone)
+}
+
+func ModifyUserFlairLevel(
+	serverId string,
+	userId string,
+	expectedCurrentFlair models.FlairLevel,
+	targetFlair models.FlairLevel,
+) (models.User, float64, error) {
+	// Create or open a server-specific database file
+	db, err := getDb(serverId)
+	if err != nil {
+		return models.User{}, 0, err
+	}
+	defer db.Close()
+
+	return modifyUserFlairLevel(db, userId, expectedCurrentFlair, targetFlair)
 }

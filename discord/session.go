@@ -48,6 +48,10 @@ func registerInteractionCreateHandlers() {
 				tama.HandleBuyTamaEggCancelPurchase(s, i)
 			case tama.SellTamaCancelSaleId:
 				tama.HandleSellTamaCancelSale(s, i)
+			case slashCommands.UpgradeFlairCancelId:
+				slashCommands.HandleUpgradeFlairCancel(s, i)
+			case slashCommands.DowngradeFlairCancelId:
+				slashCommands.HandleDowngradeFlairCancel(s, i)
 			// Handle custom IDs that have information appended to them
 			default:
 				if strings.HasPrefix(customId, tama.TransferTamaAcceptTransferId) {
@@ -58,6 +62,10 @@ func registerInteractionCreateHandlers() {
 					handlers.PredictionInteractionHandler(s, i)
 				} else if strings.HasPrefix(customId, tama.SellTamaConfirmSaleId) {
 					tama.HandleSellTamaConfirmSale(s, i)
+				} else if strings.HasPrefix(customId, slashCommands.UpgradeFlairConfirmId) {
+					slashCommands.HandleUpgradeFlairConfirm(s, i)
+				} else if strings.HasPrefix(customId, slashCommands.DowngradeFlairConfirmId) {
+					slashCommands.HandleDowngradeFlairConfirm(s, i)
 				}
 			}
 		case discordgo.InteractionModalSubmit:
@@ -83,6 +91,8 @@ func registerSlashCommands() {
 	add(&commands, &slashCommands.Award)
 	add(&commands, &slashCommands.CreatePrediction)
 	add(&commands, &slashCommands.Roll)
+	add(&commands, &slashCommands.UpgradeFlair)
+	add(&commands, &slashCommands.DowngradeFlair)
 
 	// Tama minigame commands
 	add(&commands, &tama.TamaHelp)

@@ -7,19 +7,24 @@ import (
 	"strings"
 )
 
-// Parse a CustomId like "Action|10" into JacuzziId 10.
-func ParseCustomIdToJacuzziId(customId string) JacuzziId {
+// Parse a CustomId like "Action|10" into integer 10.
+func ParseCustomIdToInt(customId string) int {
 	parts := strings.Split(customId, "|")
 	if len(parts) != 2 {
-		panic(fmt.Errorf("Couldn't parse CustomID %s into a single JacuzziId", customId))
+		panic(fmt.Errorf("Couldn't parse CustomID %s into a single integer", customId))
 	} else {
 		id, err := strconv.Atoi(parts[1])
 		if err != nil {
 			panic(fmt.Errorf("Couldn't parse CustomID second part %s: %w", parts[1], err))
 		} else {
-			return JacuzziId(id)
+			return id
 		}
 	}
+}
+
+// Parse a CustomId like "Action|10" into JacuzziId 10.
+func ParseCustomIdToJacuzziId(customId string) JacuzziId {
+	return JacuzziId(ParseCustomIdToInt(customId))
 }
 
 // Parse a CustomId like "Action|10|Text" into JacuzziId 10 and "Text".
