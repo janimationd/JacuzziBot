@@ -29,6 +29,8 @@ func Help() string {
 	result += "  - `/gamble <chance> <wager>` - Wager some of your points, gambling to maybe win back more\n"
 	result += "  - `/create-prediction` - Create a prediction that people can bet their points on\n"
 	result += "  - `/roll` - Roll X Y-sided dice\n"
+	result += "  - `/upgrade-flair` - Upgrade your cosmetic flair level, changing the color of your name in the server sidebar\n"
+	result += "  - `/downgrade-flair` - Downgrade your cosmetic flair level, getting back the points you used to purchase it\n"
 
 	result += "- Here are some other bot features with separate help pages:\n"
 	result += "  - `/tama-help` - Info on the Tamas minigame where you hatch pets from eggs and care for them\n"
